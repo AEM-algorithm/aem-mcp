@@ -1,11 +1,39 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import express from 'express';
+import express, { type Request, type Response } from 'express';
 
-import { extractBearerToken, verifySessionToken } from './auth/verify-session-token';
+import { AuthError, extractSessionToken, verifySessionToken } from './auth/verify-session-token';
 import { createAemBackendClient } from './clients/aem-backend-client';
 import type { Env } from './config/env';
+import { BackendError } from './errors/backend-error';
+import { ToolPolicyError } from './errors/tool-policy-error';
 import { createToolRegistry } from './tools/registry';
+import { logError } from './utils/logger';
+
+function sendError(res: Response, status: number, message: string): void {
+  res.status(status).json({ error: message });
+}
+
+function handleHttpError(res: Response, error: unknown): void {
+  if (error instanceof AuthError) {
+    sendError(res, 401, error.message);
+    return;
+  }
+  if (error instanceof ToolPolicyError) {
+    sendError(res, 400, error.message);
+    return;
+  }
+  if (error instanceof BackendError) {
+    const status = error.statusCode >= 500 ? 502 : error.statusCode;
+    sendError(res, status, error.message);
+    return;
+  }
+
+  logError('mcp_request_failed', {
+    error: error instanceof Error ? error.message : 'unknown',
+  });
+  sendError(res, 500, 'Internal server error');
+}
 
 export function createMcpApp(env: Env): express.Express {
   const app = express();
@@ -16,9 +44,16 @@ export function createMcpApp(env: Env): express.Express {
     res.json({ status: 'ok', service: 'aem-mcp' });
   });
 
-  app.post('/mcp', express.json(), async (req, res) => {
+  app.get('/ready', (_req, res) => {
+    res.json({ status: 'ready', service: 'aem-mcp' });
+  });
+
+  app.post('/mcp', express.json(), async (req: Request, res: Response) => {
     try {
-      const token = extractBearerToken(req.header('authorization'));
+      const token = extractSessionToken({
+        authorization: req.header('authorization'),
+        cookie: req.header('cookie'),
+      });
       const session = verifySessionToken(token, env);
 
       const server = new McpServer({
@@ -28,10 +63,18 @@ export function createMcpApp(env: Env): express.Express {
 
       for (const tool of tools) {
         server.tool(tool.name, tool.description, tool.inputSchema, async (args) => {
-          const result = await tool.handler({ session, token }, args as Record<string, unknown>);
-          return {
-            content: [{ type: 'text', text: JSON.stringify(result) }],
-          };
+          try {
+            const result = await tool.handler({ session, token }, args as Record<string, unknown>);
+            return {
+              content: [{ type: 'text', text: JSON.stringify(result) }],
+            };
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Tool execution failed';
+            return {
+              content: [{ type: 'text', text: JSON.stringify({ error: message }) }],
+              isError: true,
+            };
+          }
         });
       }
 
@@ -42,8 +85,7 @@ export function createMcpApp(env: Env): express.Express {
       await server.connect(transport);
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      res.status(401).json({ error: message });
+      handleHttpError(res, error);
     }
   });
 

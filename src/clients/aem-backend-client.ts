@@ -2,6 +2,8 @@ import axios, { type AxiosInstance, type Method } from 'axios';
 
 import type { Env } from '../config/env';
 import type { SessionContext } from '../auth/session-context';
+import { BackendError } from '../errors/backend-error';
+import { extractBackendErrorMessage, normalizeBackendResponse } from '../utils/backend-response';
 
 export type BackendRequestOptions = {
   method?: Method;
@@ -36,16 +38,37 @@ export function createAemBackendClient(env: Env): AemBackendClient {
   return {
     async request(options: BackendRequestOptions): Promise<unknown> {
       const { method = 'GET', path, token, session, params, body } = options;
-      const response = await http.request({
-        method,
-        url: path,
-        headers: {
-          Cookie: `token=${token}`,
-        },
-        params: buildQueryParams(session, params),
-        data: body,
-      });
-      return response.data;
+
+      try {
+        const response = await http.request({
+          method,
+          url: path,
+          headers: {
+            Cookie: `token=${token}`,
+          },
+          params: buildQueryParams(session, params),
+          data: body,
+          validateStatus: () => true,
+        });
+
+        if (response.status >= 400) {
+          const message = extractBackendErrorMessage(
+            response.data,
+            `Backend request failed with status ${response.status}`,
+          );
+          throw new BackendError(message, response.status);
+        }
+
+        return normalizeBackendResponse(response.data);
+      } catch (error) {
+        if (error instanceof BackendError) {
+          throw error;
+        }
+        if (axios.isAxiosError(error)) {
+          throw new BackendError('Failed to reach AEM backend', 502);
+        }
+        throw error;
+      }
     },
   };
 }

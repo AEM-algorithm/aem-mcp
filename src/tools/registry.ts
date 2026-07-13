@@ -2,6 +2,8 @@ import type { Method } from 'axios';
 
 import type { AemBackendClient } from '../clients/aem-backend-client';
 import type { SessionContext } from '../auth/session-context';
+import { applyToolPolicy } from '../guardrails/apply-tool-policy';
+import { logError, logInfo } from '../utils/logger';
 
 export type ToolExecutionContext = {
   session: SessionContext;
@@ -48,20 +50,44 @@ function createReadTool(backend: AemBackendClient, config: ReadToolConfig): Tool
     description: config.description,
     inputSchema: config.inputSchema,
     handler: async (context, args) => {
-      const path = config.path instanceof Function ? config.path(args) : config.path;
-      const queryParams = omitPathParams(args, pathParamKeys);
-      const body = config.bodyKeys?.length
-        ? Object.fromEntries(config.bodyKeys.filter((key) => args[key] != null).map((key) => [key, args[key]]))
-        : undefined;
+      const startedAt = Date.now();
+      try {
+        const policyArgs = applyToolPolicy(config.name, args);
+        const path = config.path instanceof Function ? config.path(policyArgs) : config.path;
+        const queryParams = omitPathParams(policyArgs, pathParamKeys);
+        const body = config.bodyKeys?.length
+          ? Object.fromEntries(
+              config.bodyKeys.filter((key) => policyArgs[key] != null).map((key) => [key, policyArgs[key]]),
+            )
+          : undefined;
 
-      return backend.request({
-        method: config.method ?? 'GET',
-        path,
-        token: context.token,
-        session: context.session,
-        params: config.method === 'POST' ? undefined : queryParams,
-        body: config.method === 'POST' ? { ...queryParams, ...body } : undefined,
-      });
+        const result = await backend.request({
+          method: config.method ?? 'GET',
+          path,
+          token: context.token,
+          session: context.session,
+          params: config.method === 'POST' ? undefined : queryParams,
+          body: config.method === 'POST' ? { ...queryParams, ...body } : undefined,
+        });
+
+        logInfo('tool_call_success', {
+          tool: config.name,
+          userId: context.session.userId,
+          companyId: context.session.companyId,
+          durationMs: Date.now() - startedAt,
+        });
+
+        return result;
+      } catch (error) {
+        logError('tool_call_failed', {
+          tool: config.name,
+          userId: context.session.userId,
+          companyId: context.session.companyId,
+          durationMs: Date.now() - startedAt,
+          error: error instanceof Error ? error.message : 'unknown',
+        });
+        throw error;
+      }
     },
   };
 }

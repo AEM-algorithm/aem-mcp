@@ -29,6 +29,18 @@ npm run dev
 
 Default port: `3002`.
 
+Endpoints:
+
+- `GET /health` — liveness
+- `GET /ready` — readiness
+- `POST /mcp` — Streamable HTTP MCP (auth: `Authorization: Bearer <jwt>` or `Cookie: token=...`)
+
+Generate a dev session token from aem-backend:
+
+```bash
+cd ../aem-backend && npx tsx -r dotenv/config scripts/create-session-token.ts 390
+```
+
 ## Tool catalog
 
 Tool definitions and metadata live in `catalog/aem-tool-metadata.yaml` (DEV-3912).
@@ -36,6 +48,8 @@ Tool definitions and metadata live in `catalog/aem-tool-metadata.yaml` (DEV-3912
 **Current policy:** read-only tools only (`policy.writes_enabled: false`). No create, update, delete, sync, label apply, rule create, or export triggers.
 
 **Agent guidance:** `catalog/aem-agent-system-prompt.md` — paste into chatbot system prompt when MCP is enabled. Example user journeys are in `aem-tool-metadata.yaml` under `example_user_journeys`.
+
+**Guardrails (DEV-3913):** enforced in `src/guardrails/` before backend calls — pagination defaults, `list_transactions` filters, and blocked slow tools (`get_transaction_summary`).
 
 ## Related tickets
 
