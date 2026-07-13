@@ -33,6 +33,10 @@ Default port: `3002`.
 
 Tool definitions and metadata live in `catalog/aem-tool-metadata.yaml` (DEV-3912).
 
+**Current policy:** read-only tools only (`policy.writes_enabled: false`). No create, update, delete, sync, label apply, rule create, or export triggers.
+
+**Agent guidance:** `catalog/aem-agent-system-prompt.md` — paste into chatbot system prompt when MCP is enabled. Example user journeys are in `aem-tool-metadata.yaml` under `example_user_journeys`.
+
 ## Related tickets
 
 - DEV-3911 — epic

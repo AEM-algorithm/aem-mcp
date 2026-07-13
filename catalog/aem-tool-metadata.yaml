@@ -1,14 +1,393 @@
 version: 1
+policy:
+  allowed_kinds:
+    - read
+  writes_enabled: false
 server:
   name: aem-mcp
-  description: AEM Journaler customer data and commands for chatbot agents
+  description: AEM Journaler read-only customer data for chatbot agents
 tools:
+  # --- Wallet ---
   - name: get_wallet_summary
     phase: 0
     kind: read
     domain: wallet
-    description: Return wallet summary for the active company scope
+    description: Wallet totals by type (count, archived count, converted balance)
     backend:
       method: GET
-      path: /wallets/summary
+      path: /wallet/aggregate
     input: {}
+
+  - name: list_wallets
+    phase: 0
+    kind: read
+    domain: wallet
+    description: Lightweight paginated wallet list
+    backend:
+      method: GET
+      path: /wallet/list-light
+    input:
+      limit: { type: integer, optional: true }
+      offset: { type: integer, optional: true }
+      originType: { type: string, optional: true }
+
+  - name: get_wallet_count
+    phase: 0
+    kind: read
+    domain: wallet
+    description: Total wallet count for the active scope
+    backend:
+      method: GET
+      path: /wallet/count
+    input: {}
+
+  - name: get_wallet
+    phase: 1
+    kind: read
+    domain: wallet
+    description: Single wallet details by id
+    backend:
+      method: GET
+      path: /wallet/{id}
+    input:
+      id: { type: integer, required: true }
+
+  # --- Subscription ---
+  - name: get_subscription
+    phase: 0
+    kind: read
+    domain: subscription
+    description: Current subscription plan and billing summary
+    backend:
+      method: GET
+      path: /subscription
+    input: {}
+
+  - name: get_subscription_status
+    phase: 0
+    kind: read
+    domain: subscription
+    description: Subscription tier and active/expired status
+    backend:
+      method: GET
+      path: /subscription/status
+    input: {}
+
+  - name: get_subscription_available_limits
+    phase: 0
+    kind: read
+    domain: subscription
+    description: Remaining resource limits for the current plan
+    backend:
+      method: GET
+      path: /subscription/available-limits
+    input: {}
+
+  - name: get_subscription_used_limits
+    phase: 0
+    kind: read
+    domain: subscription
+    description: Used resource limits for the current plan
+    backend:
+      method: GET
+      path: /subscription/used-limits
+    input: {}
+
+  # --- Transactions ---
+  - name: list_transactions
+    phase: 1
+    kind: read
+    domain: transaction
+    description: Paginated transactions with date, wallet, and label filters
+    backend:
+      method: GET
+      path: /transaction/entity
+    input:
+      walletIds: { type: string, optional: true, description: Comma-separated wallet ids }
+      from: { type: string, optional: true, description: ISO date start }
+      to: { type: string, optional: true, description: ISO date end }
+      limit: { type: integer, optional: true }
+      offset: { type: integer, optional: true }
+      search: { type: string, optional: true }
+      ruleLabelId: { type: integer, optional: true }
+
+  - name: get_transaction
+    phase: 1
+    kind: read
+    domain: transaction
+    description: Single transaction by id
+    backend:
+      method: GET
+      path: /transaction/{id}
+    input:
+      id: { type: integer, required: true }
+
+  - name: get_transaction_summary
+    phase: 1
+    kind: read
+    domain: transaction
+    description: Opening/closing balance, spent/received, and category breakdown
+    backend:
+      method: GET
+      path: /transaction/entity/details
+    input:
+      walletIds: { type: string, optional: true }
+      from: { type: string, optional: true }
+      to: { type: string, optional: true }
+
+  - name: get_transaction_count
+    phase: 1
+    kind: read
+    domain: transaction
+    description: Transaction count for filters without loading full rows
+    backend:
+      method: GET
+      path: /transaction/entity/count
+    input:
+      walletIds: { type: string, optional: true }
+      from: { type: string, optional: true }
+      to: { type: string, optional: true }
+      ruleLabelId: { type: integer, optional: true }
+
+  # --- Rules ---
+  - name: list_rules
+    phase: 1
+    kind: read
+    domain: rule
+    description: Paginated automation rules for the active company scope
+    backend:
+      method: GET
+      path: /rules
+    input:
+      search: { type: string, optional: true }
+      contactSearch: { type: string, optional: true }
+      walletSearch: { type: string, optional: true }
+      limit: { type: integer, optional: true }
+      offset: { type: integer, optional: true }
+
+  - name: get_rule
+    phase: 1
+    kind: read
+    domain: rule
+    description: Single automation rule by id
+    backend:
+      method: GET
+      path: /rules/{id}
+    input:
+      id: { type: integer, required: true }
+
+  # --- Rule labels ---
+  - name: list_rule_labels
+    phase: 1
+    kind: read
+    domain: label
+    description: Available transaction label taxonomy (names, tax type, direction)
+    backend:
+      method: GET
+      path: /rule-labels
+    input:
+      limit: { type: integer, optional: true }
+      offset: { type: integer, optional: true }
+
+  - name: get_rule_label
+    phase: 1
+    kind: read
+    domain: label
+    description: Single rule label by id
+    backend:
+      method: GET
+      path: /rule-labels/{id}
+    input:
+      id: { type: integer, required: true }
+
+  # --- Rule contacts ---
+  - name: list_rule_contacts
+    phase: 1
+    kind: read
+    domain: contact
+    description: Known counterparty addresses used by rules
+    backend:
+      method: GET
+      path: /rule-contacts
+    input:
+      limit: { type: integer, optional: true }
+      offset: { type: integer, optional: true }
+      search: { type: string, optional: true }
+
+  - name: get_rule_contact
+    phase: 1
+    kind: read
+    domain: contact
+    description: Single rule contact by id
+    backend:
+      method: GET
+      path: /rule-contacts/{id}
+    input:
+      id: { type: integer, required: true }
+
+  - name: search_rule_contacts
+    phase: 1
+    kind: read
+    domain: contact
+    description: Search rule contacts by address or name
+    backend:
+      method: POST
+      path: /rule-contacts/search
+    input:
+      search: { type: string, required: true }
+      limit: { type: integer, optional: true }
+      offset: { type: integer, optional: true }
+
+  # --- Account context ---
+  - name: list_companies
+    phase: 1
+    kind: read
+    domain: company
+    description: Companies the user can access
+    backend:
+      method: GET
+      path: /company
+    input: {}
+
+  - name: get_user_profile
+    phase: 1
+    kind: read
+    domain: user
+    description: Logged-in user profile and defaults
+    backend:
+      method: GET
+      path: /user
+    input: {}
+
+  # --- Notifications (read status only) ---
+  - name: list_notifications
+    phase: 2
+    kind: read
+    domain: notification
+    description: In-app notifications including export-ready download links
+    backend:
+      method: GET
+      path: /notification
+    input:
+      limit: { type: integer, optional: true }
+      offset: { type: integer, optional: true }
+
+  - name: get_notification_count
+    phase: 2
+    kind: read
+    domain: notification
+    description: Unread notification count
+    backend:
+      method: GET
+      path: /notification/count
+    input: {}
+
+# -----------------------------------------------------------------------------
+# Agent defaults — enforce in aem-mcp before calling aem-backend
+# -----------------------------------------------------------------------------
+agent_defaults:
+  language: en
+  max_tools_per_turn: 3
+  pagination:
+    list_wallets: { default_limit: 50, max_limit: 100 }
+    list_transactions: { default_limit: 25, max_limit: 50 }
+    list_rules: { default_limit: 50, max_limit: 100 }
+    list_rule_labels: { default_limit: 100, max_limit: 100 }
+    list_rule_contacts: { default_limit: 50, max_limit: 100 }
+    list_notifications: { default_limit: 20, max_limit: 20 }
+  required_filters:
+    list_transactions:
+      - walletIds
+      - or_date_range  # from + to
+  avoid_tools:
+    - get_transaction_summary  # VERY_SLOW until GET /api/mcp/transaction-summary exists
+  prefer_over:
+    get_subscription: get_subscription_status
+    get_user_profile: null  # use session context when GET /api/mcp/context exists
+
+# -----------------------------------------------------------------------------
+# Example user journeys (read-only chat)
+# -----------------------------------------------------------------------------
+example_user_journeys:
+  - id: account_overview
+    user_intent: Quick snapshot of account health
+    example_questions:
+      - "Summarize my account"
+      - "How many wallets do I have?"
+      - "What plan am I on?"
+    tool_sequence:
+      - get_wallet_summary
+      - get_subscription_status
+      - get_subscription_available_limits
+    response_style: Short numbers first, offer to drill down
+
+  - id: wallet_lookup
+    user_intent: Find a specific wallet or list wallets
+    example_questions:
+      - "List my wallets"
+      - "Show wallets on Ethereum"
+    tool_sequence:
+      - list_wallets
+    notes: Always pass limit; never return unbounded list
+
+  - id: transaction_count
+    user_intent: How many transactions in a period
+    example_questions:
+      - "How many transactions in March?"
+      - "Transaction count this month for my main wallet"
+    tool_sequence:
+      - list_wallets
+      - get_transaction_count
+    notes: Resolve walletIds first if user names a wallet
+
+  - id: recent_transactions
+    user_intent: See recent activity
+    example_questions:
+      - "Show my last 10 transactions"
+      - "Recent incoming USDT"
+    tool_sequence:
+      - list_wallets
+      - list_transactions
+    notes: Require walletIds + date range; default limit 25
+
+  - id: single_transaction
+    user_intent: Explain one transaction
+    example_questions:
+      - "What is transaction 12345?"
+      - "Explain this tx hash"
+    tool_sequence:
+      - get_transaction
+    notes: Use transaction id from UI context when available
+
+  - id: rules_and_labels
+    user_intent: Understand automation and taxonomy
+    example_questions:
+      - "What rules do I have for Binance?"
+      - "What labels can I use?"
+      - "Is address 0x... already a contact?"
+    tool_sequence:
+      - list_rule_labels
+      - list_rules
+      - search_rule_contacts
+    notes: Use search on rules/contacts when user gives an address
+
+  - id: subscription_limits
+    user_intent: Plan and quota questions
+    example_questions:
+      - "Am I on Pro?"
+      - "How many wallets can I still add?"
+    tool_sequence:
+      - get_subscription_status
+      - get_subscription_available_limits
+      - get_subscription_used_limits
+    notes: Do not call full GET /subscription
+
+  - id: export_ready
+    user_intent: Find a completed export download
+    example_questions:
+      - "Where is my CSV export?"
+      - "Any downloads ready?"
+    tool_sequence:
+      - list_notifications
+    notes: Read-only; user downloads via notification link in UI
+
