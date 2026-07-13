@@ -1,0 +1,14 @@
+version: 1
+server:
+  name: aem-mcp
+  description: AEM Journaler customer data and commands for chatbot agents
+tools:
+  - name: get_wallet_summary
+    phase: 0
+    kind: read
+    domain: wallet
+    description: Return wallet summary for the active company scope
+    backend:
+      method: GET
+      path: /wallets/summary
+    input: {}
