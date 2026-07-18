@@ -29,6 +29,8 @@ type ReadToolConfig = {
   path: string | ((args: Record<string, unknown>) => string);
   inputSchema: Record<string, unknown>;
   bodyKeys?: string[];
+  /** Merged into query/body before user args (user args win on conflict). */
+  fixedParams?: Record<string, unknown>;
 };
 
 function omitPathParams(
@@ -54,7 +56,10 @@ function createReadTool(backend: AemBackendClient, config: ReadToolConfig): Tool
       try {
         const policyArgs = applyToolPolicy(config.name, args);
         const path = config.path instanceof Function ? config.path(policyArgs) : config.path;
-        const queryParams = omitPathParams(policyArgs, pathParamKeys);
+        const queryParams = {
+          ...(config.fixedParams ?? {}),
+          ...omitPathParams(policyArgs, pathParamKeys),
+        };
         const body = config.bodyKeys?.length
           ? Object.fromEntries(
               config.bodyKeys.filter((key) => policyArgs[key] != null).map((key) => [key, policyArgs[key]]),
@@ -94,6 +99,13 @@ function createReadTool(backend: AemBackendClient, config: ReadToolConfig): Tool
 
 const READ_TOOLS: ReadToolConfig[] = [
   {
+    name: 'get_account_overview',
+    description:
+      'Composed account snapshot: wallet totals by type, subscription status, remaining limits, setup checklist (rules/labels/contacts), unread notifications, and activeCompany (id+name) when in company session.',
+    path: '/mcp/account-overview',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
     name: 'get_wallet_summary',
     description: 'Wallet totals by type for the active company scope.',
     path: '/wallet/aggregate',
@@ -101,7 +113,8 @@ const READ_TOOLS: ReadToolConfig[] = [
   },
   {
     name: 'list_wallets',
-    description: 'Lightweight paginated wallet list.',
+    description:
+      'Lightweight paginated wallet list. Optional filters: q (name/address search e.g. USDT), originType, chain, archived. Sort with sortBy=balance|converted_balance and order=desc for highest; zeroBalance=true for empty wallets. For asset asks: search with q, then pass walletIds to list_transactions / get_transaction_count.',
     path: '/wallet/list-light',
     inputSchema: {
       type: 'object',
@@ -109,6 +122,30 @@ const READ_TOOLS: ReadToolConfig[] = [
         limit: { type: 'integer' },
         offset: { type: 'integer' },
         originType: { type: 'string' },
+        q: {
+          type: 'string',
+          description: 'Search wallet name or address (e.g. USDT, Hot Wallet)',
+        },
+        chain: {
+          type: 'string',
+          description: 'Comma-separated chain codes, e.g. ETH,SOL,BTC',
+        },
+        archived: {
+          type: 'boolean',
+          description: 'When true, list archived wallets; when false or omitted, active only',
+        },
+        sortBy: {
+          type: 'string',
+          description: 'lastActionTime (default), name, balance, or converted_balance',
+        },
+        order: {
+          type: 'string',
+          description: 'asc or desc (default desc when sorting)',
+        },
+        zeroBalance: {
+          type: 'boolean',
+          description: 'When true, only wallets with persisted balance = 0',
+        },
       },
       additionalProperties: false,
     },
@@ -121,7 +158,8 @@ const READ_TOOLS: ReadToolConfig[] = [
   },
   {
     name: 'get_wallet',
-    description: 'Single wallet details by id.',
+    description:
+      'Single wallet details by id. Includes tax settings (isTaxEnable, walletTaxConfig, tax, taxDetails, taxBalanceUpdatedAt) and sync metadata (lastActionTime.lastSyncTime; fallback startSyncDate). Read-only — do not trigger sync.',
     path: (args) => `/wallet/${String(args.id)}`,
     inputSchema: {
       type: 'object',
@@ -156,7 +194,8 @@ const READ_TOOLS: ReadToolConfig[] = [
   },
   {
     name: 'list_transactions',
-    description: 'Paginated transactions with date, wallet, and label filters.',
+    description:
+      'Paginated transactions with date, wallet, label, type, allocate, and sort filters. ruleLabelId=0 means unlabeled. type=buy|sell|internal. allocateType=allocated|not_allocated. search matches hash/from/to/memo/amount. For biggest txs use sortBy=converted_amount and order=desc (requires walletIds or from+to).',
     path: '/transaction/entity',
     inputSchema: {
       type: 'object',
@@ -166,8 +205,30 @@ const READ_TOOLS: ReadToolConfig[] = [
         to: { type: 'string' },
         limit: { type: 'integer' },
         offset: { type: 'integer' },
-        search: { type: 'string' },
-        ruleLabelId: { type: 'integer' },
+        search: {
+          type: 'string',
+          description: 'Matches hash, from/to address, memo, or amount',
+        },
+        ruleLabelId: {
+          type: 'integer',
+          description: 'Label id filter; use 0 for unlabeled transactions',
+        },
+        type: {
+          type: 'string',
+          description: 'Transaction direction/type: buy, sell, or internal',
+        },
+        allocateType: {
+          type: 'string',
+          description: 'allocated or not_allocated',
+        },
+        sortBy: {
+          type: 'string',
+          description: 'date (default) or converted_amount for biggest-by-fiat',
+        },
+        order: {
+          type: 'string',
+          description: 'asc or desc (default desc)',
+        },
       },
       additionalProperties: false,
     },
@@ -199,7 +260,8 @@ const READ_TOOLS: ReadToolConfig[] = [
   },
   {
     name: 'get_transaction_count',
-    description: 'Transaction count for filters without loading full rows.',
+    description:
+      'Transaction count for filters without loading full rows. Supports ruleLabelId (0=unlabeled), type (buy|sell|internal), allocateType.',
     path: '/transaction/entity/count',
     inputSchema: {
       type: 'object',
@@ -207,14 +269,34 @@ const READ_TOOLS: ReadToolConfig[] = [
         walletIds: { type: 'string' },
         from: { type: 'string' },
         to: { type: 'string' },
-        ruleLabelId: { type: 'integer' },
+        ruleLabelId: {
+          type: 'integer',
+          description: 'Label id filter; use 0 for unlabeled transactions',
+        },
+        type: {
+          type: 'string',
+          description: 'Transaction direction/type: buy, sell, or internal',
+        },
+        allocateType: {
+          type: 'string',
+          description: 'allocated or not_allocated',
+        },
       },
       additionalProperties: false,
     },
   },
   {
+    name: 'get_rule_count',
+    description:
+      'Total automation rule count for the active company scope. Prefer over list_rules when only a count is needed. Read totalCount from the response.',
+    path: '/rules',
+    fixedParams: { limit: 1 },
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
     name: 'list_rules',
-    description: 'Paginated automation rules for the active company scope.',
+    description:
+      'Paginated automation rules for the active company scope. Filter with direction (INCOMING|OUTGOING|BOTH; INCOMING/OUTGOING also matches BOTH), ruleLabelId, hasXero, hasQuickBooks.',
     path: '/rules',
     inputSchema: {
       type: 'object',
@@ -222,6 +304,22 @@ const READ_TOOLS: ReadToolConfig[] = [
         search: { type: 'string' },
         contactSearch: { type: 'string' },
         walletSearch: { type: 'string' },
+        direction: {
+          type: 'string',
+          description: 'INCOMING, OUTGOING, or BOTH. INCOMING/OUTGOING also include BOTH rules.',
+        },
+        ruleLabelId: {
+          type: 'integer',
+          description: 'Filter rules that use this rule label id',
+        },
+        hasXero: {
+          type: 'boolean',
+          description: 'true = rules with Xero export config; false = without',
+        },
+        hasQuickBooks: {
+          type: 'boolean',
+          description: 'true = rules with QuickBooks export config; false = without',
+        },
         limit: { type: 'integer' },
         offset: { type: 'integer' },
       },
@@ -264,8 +362,17 @@ const READ_TOOLS: ReadToolConfig[] = [
     },
   },
   {
+    name: 'get_contact_count',
+    description:
+      'Total rule-contact count for the active scope. Prefer over list_rule_contacts when only a count is needed. Read totalCount from the response.',
+    path: '/rule-contacts',
+    fixedParams: { limit: 1 },
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
     name: 'list_rule_contacts',
-    description: 'Known counterparty addresses used by rules.',
+    description:
+      'Known counterparty addresses used by rules. Use hasExchangeUserId=true to list contacts that store an exchange user id.',
     path: '/rule-contacts',
     inputSchema: {
       type: 'object',
@@ -273,6 +380,10 @@ const READ_TOOLS: ReadToolConfig[] = [
         limit: { type: 'integer' },
         offset: { type: 'integer' },
         search: { type: 'string' },
+        hasExchangeUserId: {
+          type: 'boolean',
+          description: 'true = contacts with exchange_user_id set; false = without',
+        },
       },
       additionalProperties: false,
     },
@@ -306,23 +417,49 @@ const READ_TOOLS: ReadToolConfig[] = [
   },
   {
     name: 'list_companies',
-    description: 'Companies the user can access.',
+    description:
+      'Companies the user can access. Pass details=true to include per-company tierCompany and statusPaymentCompany (subscription).',
     path: '/company',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        details: {
+          type: 'boolean',
+          description:
+            'When true, include tierCompany and statusPaymentCompany for each company (subscription / payment status).',
+        },
+      },
+      additionalProperties: false,
+    },
   },
   {
     name: 'get_user_profile',
-    description: 'Logged-in user profile and defaults.',
+    description:
+      'Logged-in user profile. For preference/security summary: use defaultCurrency, timezone, country, appNotification, taxDetails, costTrackingMethod, needs2fa (boolean only). Do not dump personalData, passwords, nonce/signatures, or 2FA codes. For wallet counts prefer get_account_overview.',
     path: '/user',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
     name: 'list_notifications',
-    description: 'In-app notifications including export-ready download links.',
+    description:
+      'In-app notifications including export-ready download links. Filter by type (e.g. EXPORT_FAILED, SYNC_FAILED, SYNC_SUCCESSFULLY), isRead, or search.',
     path: '/notification',
     inputSchema: {
       type: 'object',
       properties: {
+        type: {
+          type: 'string',
+          description:
+            'Comma-separated notification types. Examples: EXPORT_FAILED; SYNC_FAILED,SYNC_SUCCESSFULLY.',
+        },
+        isRead: {
+          type: 'boolean',
+          description: 'Filter by read status.',
+        },
+        search: {
+          type: 'string',
+          description: 'Optional text search when supported by the API.',
+        },
         limit: { type: 'integer' },
         offset: { type: 'integer' },
       },

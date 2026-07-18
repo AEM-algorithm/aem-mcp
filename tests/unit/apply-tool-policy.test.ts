@@ -26,12 +26,13 @@ describe('applyToolPolicy', () => {
     expect(result.limit).toBe(25);
   });
 
-  it('allows list_transactions with from and to', () => {
-    const result = applyToolPolicy('list_transactions', {
-      from: '2026-01-01',
-      to: '2026-01-31',
+  it('preserves chain and archived filters for list_wallets', () => {
+    const result = applyToolPolicy('list_wallets', {
+      chain: 'ETH,SOL',
+      archived: true,
     });
-    expect(result.from).toBe('2026-01-01');
-    expect(result.to).toBe('2026-01-31');
+    expect(result.limit).toBe(50);
+    expect(result.chain).toBe('ETH,SOL');
+    expect(result.archived).toBe(true);
   });
 });

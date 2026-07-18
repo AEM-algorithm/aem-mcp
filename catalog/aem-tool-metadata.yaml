@@ -7,6 +7,17 @@ server:
   name: aem-mcp
   description: AEM Journaler read-only customer data for chatbot agents
 tools:
+  # --- Account overview (composed) ---
+  - name: get_account_overview
+    phase: 0
+    kind: read
+    domain: account
+    description: Composed snapshot — wallets, subscription, limits, setup checklist, unread notifications, activeCompany
+    backend:
+      method: GET
+      path: /mcp/account-overview
+    input: {}
+
   # --- Wallet ---
   - name: get_wallet_summary
     phase: 0
@@ -22,7 +33,9 @@ tools:
     phase: 0
     kind: read
     domain: wallet
-    description: Lightweight paginated wallet list
+    description: >-
+      Lightweight paginated wallet list (q/chain/archived filters; sortBy balance|converted_balance;
+      zeroBalance for empty wallets)
     backend:
       method: GET
       path: /wallet/list-light
@@ -30,6 +43,12 @@ tools:
       limit: { type: integer, optional: true }
       offset: { type: integer, optional: true }
       originType: { type: string, optional: true }
+      q: { type: string, optional: true, description: Search wallet name or address e.g. USDT }
+      chain: { type: string, optional: true, description: Comma-separated chains e.g. ETH,SOL }
+      archived: { type: boolean, optional: true, description: true = archived only; false/omit = active }
+      sortBy: { type: string, optional: true, description: lastActionTime | name | balance | converted_balance }
+      order: { type: string, optional: true, description: asc or desc }
+      zeroBalance: { type: boolean, optional: true, description: true = balance equals 0 }
 
   - name: get_wallet_count
     phase: 0
@@ -45,7 +64,8 @@ tools:
     phase: 1
     kind: read
     domain: wallet
-    description: Single wallet details by id
+    description: >-
+      Single wallet by id (tax: isTaxEnable/walletTaxConfig/taxDetails; sync: lastActionTime.lastSyncTime)
     backend:
       method: GET
       path: /wallet/{id}
@@ -98,7 +118,7 @@ tools:
     phase: 1
     kind: read
     domain: transaction
-    description: Paginated transactions with date, wallet, and label filters
+    description: Paginated transactions with date, wallet, label, type, allocate, search, and sort filters
     backend:
       method: GET
       path: /transaction/entity
@@ -108,8 +128,12 @@ tools:
       to: { type: string, optional: true, description: ISO date end }
       limit: { type: integer, optional: true }
       offset: { type: integer, optional: true }
-      search: { type: string, optional: true }
-      ruleLabelId: { type: integer, optional: true }
+      search: { type: string, optional: true, description: Matches hash, from/to, memo, or amount }
+      ruleLabelId: { type: integer, optional: true, description: Label id; 0 = unlabeled }
+      type: { type: string, optional: true, description: buy | sell | internal }
+      allocateType: { type: string, optional: true, description: allocated | not_allocated }
+      sortBy: { type: string, optional: true, description: date (default) or converted_amount }
+      order: { type: string, optional: true, description: asc or desc (default desc) }
 
   - name: get_transaction
     phase: 1
@@ -147,14 +171,30 @@ tools:
       walletIds: { type: string, optional: true }
       from: { type: string, optional: true }
       to: { type: string, optional: true }
-      ruleLabelId: { type: integer, optional: true }
+      ruleLabelId: { type: integer, optional: true, description: Label id; 0 = unlabeled }
+      type: { type: string, optional: true, description: buy | sell | internal }
+      allocateType: { type: string, optional: true, description: allocated | not_allocated }
 
   # --- Rules ---
+  - name: get_rule_count
+    phase: 1
+    kind: read
+    domain: rule
+    description: Total automation rule count (read totalCount; prefer over list_rules for counts)
+    backend:
+      method: GET
+      path: /rules
+      fixed_params:
+        limit: 1
+    input: {}
+
   - name: list_rules
     phase: 1
     kind: read
     domain: rule
-    description: Paginated automation rules for the active company scope
+    description: >-
+      Paginated automation rules for the active company scope. Supports direction
+      (INCOMING|OUTGOING|BOTH), ruleLabelId, hasXero, hasQuickBooks filters.
     backend:
       method: GET
       path: /rules
@@ -162,6 +202,10 @@ tools:
       search: { type: string, optional: true }
       contactSearch: { type: string, optional: true }
       walletSearch: { type: string, optional: true }
+      direction: { type: string, optional: true }
+      ruleLabelId: { type: integer, optional: true }
+      hasXero: { type: boolean, optional: true }
+      hasQuickBooks: { type: boolean, optional: true }
       limit: { type: integer, optional: true }
       offset: { type: integer, optional: true }
 
@@ -201,11 +245,25 @@ tools:
       id: { type: integer, required: true }
 
   # --- Rule contacts ---
+  - name: get_contact_count
+    phase: 1
+    kind: read
+    domain: contact
+    description: Total rule-contact count (read totalCount; prefer over list_rule_contacts for counts)
+    backend:
+      method: GET
+      path: /rule-contacts
+      fixed_params:
+        limit: 1
+    input: {}
+
   - name: list_rule_contacts
     phase: 1
     kind: read
     domain: contact
-    description: Known counterparty addresses used by rules
+    description: >-
+      Known counterparty addresses used by rules. Supports hasExchangeUserId to filter
+      contacts that store an exchange user id.
     backend:
       method: GET
       path: /rule-contacts
@@ -213,6 +271,7 @@ tools:
       limit: { type: integer, optional: true }
       offset: { type: integer, optional: true }
       search: { type: string, optional: true }
+      hasExchangeUserId: { type: boolean, optional: true, description: true = has exchange_user_id }
 
   - name: get_rule_contact
     phase: 1
@@ -243,17 +302,21 @@ tools:
     phase: 1
     kind: read
     domain: company
-    description: Companies the user can access
+    description: Companies the user can access; details=true adds tierCompany and statusPaymentCompany
     backend:
       method: GET
       path: /company
-    input: {}
+    input:
+      details: { type: boolean, optional: true }
 
   - name: get_user_profile
     phase: 1
     kind: read
     domain: user
-    description: Logged-in user profile and defaults
+    description: >
+      Logged-in user profile. For prefs/security summary use non-sensitive fields only
+      (defaultCurrency, timezone, country, appNotification, taxDetails, costTrackingMethod,
+      needs2fa boolean). Wallet counts: prefer get_account_overview, not this tool.
     backend:
       method: GET
       path: /user
@@ -264,11 +327,14 @@ tools:
     phase: 2
     kind: read
     domain: notification
-    description: In-app notifications including export-ready download links
+    description: In-app notifications; filter by type (EXPORT_FAILED, SYNC_*), isRead, search
     backend:
       method: GET
       path: /notification
     input:
+      type: { type: string, optional: true }
+      isRead: { type: boolean, optional: true }
+      search: { type: string, optional: true }
       limit: { type: integer, optional: true }
       offset: { type: integer, optional: true }
 
@@ -303,7 +369,12 @@ agent_defaults:
     - get_transaction_summary  # VERY_SLOW until GET /api/mcp/transaction-summary exists
   prefer_over:
     get_subscription: get_subscription_status
-    get_user_profile: null  # use session context when GET /api/mcp/context exists
+    get_wallet_summary: get_account_overview
+    get_subscription_status: get_account_overview
+    get_subscription_available_limits: get_account_overview
+    get_user_profile: get_account_overview  # overview covers plan/setup; profile still for email/currency detail
+    list_rules: get_rule_count  # when user only asks how many rules
+    list_rule_contacts: get_contact_count  # when user only asks how many contacts
 
 # -----------------------------------------------------------------------------
 # Example user journeys (read-only chat)
@@ -315,10 +386,9 @@ example_user_journeys:
       - "Summarize my account"
       - "How many wallets do I have?"
       - "What plan am I on?"
+      - "Am I set up correctly?"
     tool_sequence:
-      - get_wallet_summary
-      - get_subscription_status
-      - get_subscription_available_limits
+      - get_account_overview
     response_style: Short numbers first, offer to drill down
 
   - id: wallet_lookup
@@ -326,38 +396,69 @@ example_user_journeys:
     example_questions:
       - "List my wallets"
       - "Show wallets on Ethereum"
+      - "Do I have any USDT wallets?"
     tool_sequence:
       - list_wallets
-    notes: Always pass limit; never return unbounded list
+    notes: Always pass limit; use q for asset/name search; chain/archived when relevant
 
   - id: transaction_count
     user_intent: How many transactions in a period
     example_questions:
       - "How many transactions in March?"
       - "Transaction count this month for my main wallet"
+      - "How many unlabeled transactions?"
     tool_sequence:
       - list_wallets
       - get_transaction_count
-    notes: Resolve walletIds first if user names a wallet
+    notes: Resolve walletIds first if user names a wallet; unlabeled → ruleLabelId=0; direction → type=buy|sell|internal
 
   - id: recent_transactions
     user_intent: See recent activity
     example_questions:
       - "Show my last 10 transactions"
-      - "Recent incoming USDT"
+      - "Recent outgoing transactions"
     tool_sequence:
       - list_wallets
       - list_transactions
-    notes: Require walletIds + date range; default limit 25
+    notes: Require walletIds + date range; default limit 25; type/ruleLabelId when user filters
+
+  - id: biggest_transactions
+    user_intent: Rank transactions by fiat size
+    example_questions:
+      - "Show my biggest recent transactions"
+      - "Largest transactions this month"
+    tool_sequence:
+      - list_transactions
+    notes: sortBy=converted_amount order=desc; pass from+to or walletIds; set limit
+
+  - id: deposit_withdrawal_trades
+    user_intent: List deposits, withdrawals, or trades for a period
+    example_questions:
+      - "List deposits this month"
+      - "List withdrawals this month"
+      - "Show trades / swaps this month"
+    tool_sequence:
+      - list_rule_labels
+      - list_transactions
+    notes: Deposit/withdrawal → match labels then ruleLabelId + dates. Trades → prefer labels; else type/search. If no label matches, say so.
 
   - id: single_transaction
     user_intent: Explain one transaction
     example_questions:
       - "What is transaction 12345?"
-      - "Explain this tx hash"
     tool_sequence:
       - get_transaction
     notes: Use transaction id from UI context when available
+
+  - id: tx_hash_lookup
+    user_intent: Explain a transaction by hash
+    example_questions:
+      - "Explain this tx hash"
+      - "What is transaction 0xabc...?"
+    tool_sequence:
+      - list_transactions
+      - get_transaction
+    notes: Pass search=<hash> with from+to or walletIds; then get_transaction by matched id. If none, say so.
 
   - id: rules_and_labels
     user_intent: Understand automation and taxonomy
@@ -365,11 +466,15 @@ example_user_journeys:
       - "What rules do I have for Binance?"
       - "What labels can I use?"
       - "Is address 0x... already a contact?"
+      - "How many rules do I have?"
+      - "How many contacts do I have?"
     tool_sequence:
+      - get_rule_count
+      - get_contact_count
       - list_rule_labels
       - list_rules
       - search_rule_contacts
-    notes: Use search on rules/contacts when user gives an address
+    notes: Prefer get_rule_count / get_contact_count for count-only asks; use search on rules/contacts when user gives an address
 
   - id: subscription_limits
     user_intent: Plan and quota questions

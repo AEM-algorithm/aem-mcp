@@ -8,6 +8,7 @@ import type { Env } from './config/env';
 import { BackendError } from './errors/backend-error';
 import { ToolPolicyError } from './errors/tool-policy-error';
 import { createToolRegistry } from './tools/registry';
+import { registerReadTools } from './tools/register-tools';
 import { logError } from './utils/logger';
 
 function sendError(res: Response, status: number, message: string): void {
@@ -61,22 +62,7 @@ export function createMcpApp(env: Env): express.Express {
         version: '0.1.0',
       });
 
-      for (const tool of tools) {
-        server.tool(tool.name, tool.description, tool.inputSchema, async (args) => {
-          try {
-            const result = await tool.handler({ session, token }, args as Record<string, unknown>);
-            return {
-              content: [{ type: 'text', text: JSON.stringify(result) }],
-            };
-          } catch (error) {
-            const message = error instanceof Error ? error.message : 'Tool execution failed';
-            return {
-              content: [{ type: 'text', text: JSON.stringify({ error: message }) }],
-              isError: true,
-            };
-          }
-        });
-      }
+      registerReadTools(server, tools, () => ({ session, token }));
 
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
