@@ -27,7 +27,7 @@ npm install
 npm run dev
 ```
 
-Default port: `3002`.
+Default port: `3000`.
 
 Endpoints:
 

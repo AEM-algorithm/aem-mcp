@@ -118,7 +118,9 @@ tools:
     phase: 1
     kind: read
     domain: transaction
-    description: Paginated transactions with date, wallet, label, type, allocate, search, and sort filters
+    description: >-
+      Paginated transactions with date, wallet, label, type, allocate, search, and sort filters.
+      For biggest txs: sortBy=converted_amount order=desc with from+to (or walletIds) and limit.
     backend:
       method: GET
       path: /transaction/entity
@@ -180,7 +182,9 @@ tools:
     phase: 1
     kind: read
     domain: rule
-    description: Total automation rule count (read totalCount; prefer over list_rules for counts)
+    description: >-
+      Total automation rule count (read totalCount). Use only when the user asks
+      how many rules — not for list/show intents (use list_rules).
     backend:
       method: GET
       path: /rules
@@ -193,8 +197,9 @@ tools:
     kind: read
     domain: rule
     description: >-
-      Paginated automation rules for the active company scope. Supports direction
+      Paginated automation rules for list/show intents. Supports direction
       (INCOMING|OUTGOING|BOTH), ruleLabelId, hasXero, hasQuickBooks filters.
+      Use this (with limit) when the user asks what rules they have — not get_rule_count.
     backend:
       method: GET
       path: /rules
@@ -225,7 +230,10 @@ tools:
     phase: 1
     kind: read
     domain: label
-    description: Available transaction label taxonomy (names, tax type, direction)
+    description: >-
+      List available transaction label taxonomy (names, tax type, direction).
+      Use for "what labels can I use" and as the first step for deposit/withdrawal/trade asks.
+      Do not use get_rule_label without a known id.
     backend:
       method: GET
       path: /rule-labels
@@ -249,7 +257,9 @@ tools:
     phase: 1
     kind: read
     domain: contact
-    description: Total rule-contact count (read totalCount; prefer over list_rule_contacts for counts)
+    description: >-
+      Total rule-contact count (read totalCount). Use only when the user asks
+      how many contacts — not for list/show intents (use list_rule_contacts).
     backend:
       method: GET
       path: /rule-contacts
@@ -262,8 +272,8 @@ tools:
     kind: read
     domain: contact
     description: >-
-      Known counterparty addresses used by rules. Supports hasExchangeUserId to filter
-      contacts that store an exchange user id.
+      List known counterparty addresses used by rules (list/show intents).
+      Supports hasExchangeUserId to filter contacts that store an exchange user id.
     backend:
       method: GET
       path: /rule-contacts
@@ -314,9 +324,10 @@ tools:
     kind: read
     domain: user
     description: >
-      Logged-in user profile. For prefs/security summary use non-sensitive fields only
+      Logged-in user profile. Required for default currency and prefs/security summary
       (defaultCurrency, timezone, country, appNotification, taxDetails, costTrackingMethod,
-      needs2fa boolean). Wallet counts: prefer get_account_overview, not this tool.
+      needs2fa boolean). Do not use get_account_overview for currency/prefs.
+      Wallet counts: prefer get_account_overview, not this tool.
     backend:
       method: GET
       path: /user
@@ -327,7 +338,10 @@ tools:
     phase: 2
     kind: read
     domain: notification
-    description: In-app notifications; filter by type (EXPORT_FAILED, SYNC_*), isRead, search
+    description: >-
+      List in-app notifications (latest / export / sync). Filter by type
+      (EXPORT_FAILED, SYNC_*), isRead, search. Use for list/show intents — not
+      get_notification_count alone.
     backend:
       method: GET
       path: /notification
@@ -342,7 +356,9 @@ tools:
     phase: 2
     kind: read
     domain: notification
-    description: Unread notification count
+    description: >-
+      Unread notification count. Use only for "how many unread" — for latest /
+      failed export / sync lists use list_notifications.
     backend:
       method: GET
       path: /notification/count
@@ -372,9 +388,12 @@ agent_defaults:
     get_wallet_summary: get_account_overview
     get_subscription_status: get_account_overview
     get_subscription_available_limits: get_account_overview
-    get_user_profile: get_account_overview  # overview covers plan/setup; profile still for email/currency detail
-    list_rules: get_rule_count  # when user only asks how many rules
-    list_rule_contacts: get_contact_count  # when user only asks how many contacts
+    # Do NOT prefer overview over get_user_profile for currency/prefs.
+    # Do NOT prefer get_rule_count / get_contact_count over list_* for list/show intents.
+    get_rule_count: list_rules  # when user asks to list/show rules
+    get_contact_count: list_rule_contacts  # when user asks to list/show contacts
+    get_notification_count: list_notifications  # when user asks for latest/filtered notifications
+    get_rule_label: list_rule_labels  # taxonomy / "what labels" without a known id
 
 # -----------------------------------------------------------------------------
 # Example user journeys (read-only chat)
@@ -440,7 +459,9 @@ example_user_journeys:
     tool_sequence:
       - list_rule_labels
       - list_transactions
-    notes: Deposit/withdrawal → match labels then ruleLabelId + dates. Trades → prefer labels; else type/search. If no label matches, say so.
+    notes: >-
+      First tool MUST be list_rule_labels. Then list_transactions with ruleLabelId + dates.
+      Never invent tool names. If no label matches, say so.
 
   - id: single_transaction
     user_intent: Explain one transaction
@@ -465,16 +486,21 @@ example_user_journeys:
     example_questions:
       - "What rules do I have for Binance?"
       - "What labels can I use?"
+      - "List my rule contacts"
       - "Is address 0x... already a contact?"
       - "How many rules do I have?"
       - "How many contacts do I have?"
     tool_sequence:
-      - get_rule_count
-      - get_contact_count
       - list_rule_labels
       - list_rules
+      - list_rule_contacts
       - search_rule_contacts
-    notes: Prefer get_rule_count / get_contact_count for count-only asks; use search on rules/contacts when user gives an address
+      - get_rule_count
+      - get_contact_count
+    notes: >-
+      List/show → list_rules / list_rule_labels / list_rule_contacts.
+      Count-only ("how many") → get_rule_count / get_contact_count.
+      Address paste → search_rule_contacts.
 
   - id: subscription_limits
     user_intent: Plan and quota questions
@@ -492,7 +518,12 @@ example_user_journeys:
     example_questions:
       - "Where is my CSV export?"
       - "Any downloads ready?"
+      - "Get my latest notifications"
+      - "Any failed exports?"
+      - "Any sync/import status notifications?"
     tool_sequence:
       - list_notifications
-    notes: Read-only; user downloads via notification link in UI
+    notes: >-
+      Always list_notifications for latest/failed/sync (type=EXPORT_FAILED or SYNC_*).
+      get_notification_count only for unread count questions. Read-only.
 

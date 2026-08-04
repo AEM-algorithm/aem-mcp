@@ -195,7 +195,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'list_transactions',
     description:
-      'Paginated transactions with date, wallet, label, type, allocate, and sort filters. ruleLabelId=0 means unlabeled. type=buy|sell|internal. allocateType=allocated|not_allocated. search matches hash/from/to/memo/amount. For biggest txs use sortBy=converted_amount and order=desc (requires walletIds or from+to).',
+      'Paginated transactions with date, wallet, label, type, allocate, and sort filters. ruleLabelId=0 means unlabeled. type=buy|sell|internal. allocateType=allocated|not_allocated. search matches hash/from/to/memo/amount. For biggest txs MUST use sortBy=converted_amount and order=desc with from+to (or walletIds) and limit — do not use overview/KB alone.',
     path: '/transaction/entity',
     inputSchema: {
       type: 'object',
@@ -261,7 +261,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'get_transaction_count',
     description:
-      'Transaction count for filters without loading full rows. Supports ruleLabelId (0=unlabeled), type (buy|sell|internal), allocateType.',
+      'Transaction count for filters without loading full rows. Supports ruleLabelId (0=unlabeled), type (buy|sell|internal), allocateType. For unlabeled counts always pass ruleLabelId=0 with from+to (or walletIds) — do not omit date/wallet scope.',
     path: '/transaction/entity/count',
     inputSchema: {
       type: 'object',
@@ -288,7 +288,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'get_rule_count',
     description:
-      'Total automation rule count for the active company scope. Prefer over list_rules when only a count is needed. Read totalCount from the response.',
+      'Total automation rule count for the active company scope. Use only when the user asks how many rules — not for list/show. Read totalCount from the response.',
     path: '/rules',
     fixedParams: { limit: 1 },
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
@@ -296,7 +296,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'list_rules',
     description:
-      'Paginated automation rules for the active company scope. Filter with direction (INCOMING|OUTGOING|BOTH; INCOMING/OUTGOING also matches BOTH), ruleLabelId, hasXero, hasQuickBooks.',
+      'List automation rules for the active company (list/show intents). Filter with direction (INCOMING|OUTGOING|BOTH; INCOMING/OUTGOING also matches BOTH), ruleLabelId, hasXero, hasQuickBooks. Use with limit when user asks what rules they have — not get_rule_count.',
     path: '/rules',
     inputSchema: {
       type: 'object',
@@ -339,7 +339,8 @@ const READ_TOOLS: ReadToolConfig[] = [
   },
   {
     name: 'list_rule_labels',
-    description: 'Available transaction label taxonomy.',
+    description:
+      'List available transaction label taxonomy (names). Use for "what labels can I use" and as the REQUIRED first step for deposit/withdrawal/trade asks before list_transactions. Do not use get_rule_label without a known id.',
     path: '/rule-labels',
     inputSchema: {
       type: 'object',
@@ -364,7 +365,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'get_contact_count',
     description:
-      'Total rule-contact count for the active scope. Prefer over list_rule_contacts when only a count is needed. Read totalCount from the response.',
+      'Total rule-contact count for the active scope. Use only when the user asks how many contacts — not for list/show. Read totalCount from the response.',
     path: '/rule-contacts',
     fixedParams: { limit: 1 },
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
@@ -372,7 +373,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'list_rule_contacts',
     description:
-      'Known counterparty addresses used by rules. Use hasExchangeUserId=true to list contacts that store an exchange user id.',
+      'List known counterparty addresses used by rules (list/show intents). Use hasExchangeUserId=true to list contacts that store an exchange user id. Prefer this over get_contact_count for list questions.',
     path: '/rule-contacts',
     inputSchema: {
       type: 'object',
@@ -435,14 +436,14 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'get_user_profile',
     description:
-      'Logged-in user profile. For preference/security summary: use defaultCurrency, timezone, country, appNotification, taxDetails, costTrackingMethod, needs2fa (boolean only). Do not dump personalData, passwords, nonce/signatures, or 2FA codes. For wallet counts prefer get_account_overview.',
+      'Logged-in user profile. REQUIRED for default currency and preference/security summary: use defaultCurrency, timezone, country, appNotification, taxDetails, costTrackingMethod, needs2fa (boolean only). Do not dump personalData, passwords, nonce/signatures, or 2FA codes. Do not use get_account_overview for currency/prefs. For wallet counts prefer get_account_overview.',
     path: '/user',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
     name: 'list_notifications',
     description:
-      'In-app notifications including export-ready download links. Filter by type (e.g. EXPORT_FAILED, SYNC_FAILED, SYNC_SUCCESSFULLY), isRead, or search.',
+      'List in-app notifications including export-ready download links. Use for latest notifications and filtered asks. Filter by type (e.g. EXPORT_FAILED, SYNC_FAILED, SYNC_SUCCESSFULLY), isRead, or search. Do not use get_notification_count alone for list/filter intents; never claim type filters are unavailable.',
     path: '/notification',
     inputSchema: {
       type: 'object',
@@ -468,7 +469,8 @@ const READ_TOOLS: ReadToolConfig[] = [
   },
   {
     name: 'get_notification_count',
-    description: 'Unread notification count.',
+    description:
+      'Unread notification count. Use only for how-many-unread questions; for latest/failed-export/sync lists use list_notifications.',
     path: '/notification/count',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },

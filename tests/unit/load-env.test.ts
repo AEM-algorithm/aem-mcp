@@ -7,7 +7,7 @@ describe('loadEnv', () => {
     });
 
     expect(env.JWT_SECRET).toBe('1234');
-    expect(env.PORT).toBe(3002);
+    expect(env.PORT).toBe(3000);
     expect(env.AEM_BACKEND_URL).toBe('http://localhost:3000/api');
   });
 
