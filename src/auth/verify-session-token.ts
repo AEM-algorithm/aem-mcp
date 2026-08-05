@@ -40,3 +40,25 @@ export function extractBearerToken(authorizationHeader: string | undefined): str
   }
   return token;
 }
+
+export function extractSessionToken(headers: {
+  authorization?: string;
+  cookie?: string;
+}): string {
+  const authorization = headers.authorization;
+  if (authorization?.startsWith('Bearer ')) {
+    return extractBearerToken(authorization);
+  }
+
+  const cookie = headers.cookie;
+  if (!cookie) {
+    throw new AuthError('Missing session token');
+  }
+
+  const match = cookie.match(/(?:^|;\s*)token=([^;]+)/);
+  if (!match?.[1]) {
+    throw new AuthError('Missing session token');
+  }
+
+  return decodeURIComponent(match[1].trim());
+}

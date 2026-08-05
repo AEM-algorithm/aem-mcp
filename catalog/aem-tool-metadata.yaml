@@ -1,14 +1,529 @@
 version: 1
+policy:
+  allowed_kinds:
+    - read
+  writes_enabled: false
 server:
   name: aem-mcp
-  description: AEM Journaler customer data and commands for chatbot agents
+  description: AEM Journaler read-only customer data for chatbot agents
 tools:
+  # --- Account overview (composed) ---
+  - name: get_account_overview
+    phase: 0
+    kind: read
+    domain: account
+    description: Composed snapshot — wallets, subscription, limits, setup checklist, unread notifications, activeCompany
+    backend:
+      method: GET
+      path: /mcp/account-overview
+    input: {}
+
+  # --- Wallet ---
   - name: get_wallet_summary
     phase: 0
     kind: read
     domain: wallet
-    description: Return wallet summary for the active company scope
+    description: Wallet totals by type (count, archived count, converted balance)
     backend:
       method: GET
-      path: /wallets/summary
+      path: /wallet/aggregate
     input: {}
+
+  - name: list_wallets
+    phase: 0
+    kind: read
+    domain: wallet
+    description: >-
+      Lightweight paginated wallet list (q/chain/archived filters; sortBy balance|converted_balance;
+      zeroBalance for empty wallets)
+    backend:
+      method: GET
+      path: /wallet/list-light
+    input:
+      limit: { type: integer, optional: true }
+      offset: { type: integer, optional: true }
+      originType: { type: string, optional: true }
+      q: { type: string, optional: true, description: Search wallet name or address e.g. USDT }
+      chain: { type: string, optional: true, description: Comma-separated chains e.g. ETH,SOL }
+      archived: { type: boolean, optional: true, description: true = archived only; false/omit = active }
+      sortBy: { type: string, optional: true, description: lastActionTime | name | balance | converted_balance }
+      order: { type: string, optional: true, description: asc or desc }
+      zeroBalance: { type: boolean, optional: true, description: true = balance equals 0 }
+
+  - name: get_wallet_count
+    phase: 0
+    kind: read
+    domain: wallet
+    description: Total wallet count for the active scope
+    backend:
+      method: GET
+      path: /wallet/count
+    input: {}
+
+  - name: get_wallet
+    phase: 1
+    kind: read
+    domain: wallet
+    description: >-
+      Single wallet by id (tax: isTaxEnable/walletTaxConfig/taxDetails; sync: lastActionTime.lastSyncTime)
+    backend:
+      method: GET
+      path: /wallet/{id}
+    input:
+      id: { type: integer, required: true }
+
+  # --- Subscription ---
+  - name: get_subscription
+    phase: 0
+    kind: read
+    domain: subscription
+    description: Current subscription plan and billing summary
+    backend:
+      method: GET
+      path: /subscription
+    input: {}
+
+  - name: get_subscription_status
+    phase: 0
+    kind: read
+    domain: subscription
+    description: Subscription tier and active/expired status
+    backend:
+      method: GET
+      path: /subscription/status
+    input: {}
+
+  - name: get_subscription_available_limits
+    phase: 0
+    kind: read
+    domain: subscription
+    description: Remaining resource limits for the current plan
+    backend:
+      method: GET
+      path: /subscription/available-limits
+    input: {}
+
+  - name: get_subscription_used_limits
+    phase: 0
+    kind: read
+    domain: subscription
+    description: Used resource limits for the current plan
+    backend:
+      method: GET
+      path: /subscription/used-limits
+    input: {}
+
+  # --- Transactions ---
+  - name: list_transactions
+    phase: 1
+    kind: read
+    domain: transaction
+    description: >-
+      Paginated transactions with date, wallet, label, type, allocate, search, and sort filters.
+      For biggest txs: sortBy=converted_amount order=desc with from+to (or walletIds) and limit.
+    backend:
+      method: GET
+      path: /transaction/entity
+    input:
+      walletIds: { type: string, optional: true, description: Comma-separated wallet ids }
+      from: { type: string, optional: true, description: ISO date start }
+      to: { type: string, optional: true, description: ISO date end }
+      limit: { type: integer, optional: true }
+      offset: { type: integer, optional: true }
+      search: { type: string, optional: true, description: Matches hash, from/to, memo, or amount }
+      ruleLabelId: { type: integer, optional: true, description: Label id; 0 = unlabeled }
+      type: { type: string, optional: true, description: buy | sell | internal }
+      allocateType: { type: string, optional: true, description: allocated | not_allocated }
+      sortBy: { type: string, optional: true, description: date (default) or converted_amount }
+      order: { type: string, optional: true, description: asc or desc (default desc) }
+
+  - name: get_transaction
+    phase: 1
+    kind: read
+    domain: transaction
+    description: Single transaction by id
+    backend:
+      method: GET
+      path: /transaction/{id}
+    input:
+      id: { type: integer, required: true }
+
+  - name: get_transaction_summary
+    phase: 1
+    kind: read
+    domain: transaction
+    description: Opening/closing balance, spent/received, and category breakdown
+    backend:
+      method: GET
+      path: /transaction/entity/details
+    input:
+      walletIds: { type: string, optional: true }
+      from: { type: string, optional: true }
+      to: { type: string, optional: true }
+
+  - name: get_transaction_count
+    phase: 1
+    kind: read
+    domain: transaction
+    description: Transaction count for filters without loading full rows
+    backend:
+      method: GET
+      path: /transaction/entity/count
+    input:
+      walletIds: { type: string, optional: true }
+      from: { type: string, optional: true }
+      to: { type: string, optional: true }
+      ruleLabelId: { type: integer, optional: true, description: Label id; 0 = unlabeled }
+      type: { type: string, optional: true, description: buy | sell | internal }
+      allocateType: { type: string, optional: true, description: allocated | not_allocated }
+
+  # --- Rules ---
+  - name: get_rule_count
+    phase: 1
+    kind: read
+    domain: rule
+    description: >-
+      Total automation rule count (read totalCount). Use only when the user asks
+      how many rules — not for list/show intents (use list_rules).
+    backend:
+      method: GET
+      path: /rules
+      fixed_params:
+        limit: 1
+    input: {}
+
+  - name: list_rules
+    phase: 1
+    kind: read
+    domain: rule
+    description: >-
+      Paginated automation rules for list/show intents. Supports direction
+      (INCOMING|OUTGOING|BOTH), ruleLabelId, hasXero, hasQuickBooks filters.
+      Use this (with limit) when the user asks what rules they have — not get_rule_count.
+    backend:
+      method: GET
+      path: /rules
+    input:
+      search: { type: string, optional: true }
+      contactSearch: { type: string, optional: true }
+      walletSearch: { type: string, optional: true }
+      direction: { type: string, optional: true }
+      ruleLabelId: { type: integer, optional: true }
+      hasXero: { type: boolean, optional: true }
+      hasQuickBooks: { type: boolean, optional: true }
+      limit: { type: integer, optional: true }
+      offset: { type: integer, optional: true }
+
+  - name: get_rule
+    phase: 1
+    kind: read
+    domain: rule
+    description: Single automation rule by id
+    backend:
+      method: GET
+      path: /rules/{id}
+    input:
+      id: { type: integer, required: true }
+
+  # --- Rule labels ---
+  - name: list_rule_labels
+    phase: 1
+    kind: read
+    domain: label
+    description: >-
+      List available transaction label taxonomy (names, tax type, direction).
+      Use for "what labels can I use" and as the first step for deposit/withdrawal/trade asks.
+      Do not use get_rule_label without a known id.
+    backend:
+      method: GET
+      path: /rule-labels
+    input:
+      limit: { type: integer, optional: true }
+      offset: { type: integer, optional: true }
+
+  - name: get_rule_label
+    phase: 1
+    kind: read
+    domain: label
+    description: Single rule label by id
+    backend:
+      method: GET
+      path: /rule-labels/{id}
+    input:
+      id: { type: integer, required: true }
+
+  # --- Rule contacts ---
+  - name: get_contact_count
+    phase: 1
+    kind: read
+    domain: contact
+    description: >-
+      Total rule-contact count (read totalCount). Use only when the user asks
+      how many contacts — not for list/show intents (use list_rule_contacts).
+    backend:
+      method: GET
+      path: /rule-contacts
+      fixed_params:
+        limit: 1
+    input: {}
+
+  - name: list_rule_contacts
+    phase: 1
+    kind: read
+    domain: contact
+    description: >-
+      List known counterparty addresses used by rules (list/show intents).
+      Supports hasExchangeUserId to filter contacts that store an exchange user id.
+    backend:
+      method: GET
+      path: /rule-contacts
+    input:
+      limit: { type: integer, optional: true }
+      offset: { type: integer, optional: true }
+      search: { type: string, optional: true }
+      hasExchangeUserId: { type: boolean, optional: true, description: true = has exchange_user_id }
+
+  - name: get_rule_contact
+    phase: 1
+    kind: read
+    domain: contact
+    description: Single rule contact by id
+    backend:
+      method: GET
+      path: /rule-contacts/{id}
+    input:
+      id: { type: integer, required: true }
+
+  - name: search_rule_contacts
+    phase: 1
+    kind: read
+    domain: contact
+    description: Search rule contacts by address or name
+    backend:
+      method: POST
+      path: /rule-contacts/search
+    input:
+      search: { type: string, required: true }
+      limit: { type: integer, optional: true }
+      offset: { type: integer, optional: true }
+
+  # --- Account context ---
+  - name: list_companies
+    phase: 1
+    kind: read
+    domain: company
+    description: Companies the user can access; details=true adds tierCompany and statusPaymentCompany
+    backend:
+      method: GET
+      path: /company
+    input:
+      details: { type: boolean, optional: true }
+
+  - name: get_user_profile
+    phase: 1
+    kind: read
+    domain: user
+    description: >
+      Logged-in user profile. Required for default currency and prefs/security summary
+      (defaultCurrency, timezone, country, appNotification, taxDetails, costTrackingMethod,
+      needs2fa boolean). Do not use get_account_overview for currency/prefs.
+      Wallet counts: prefer get_account_overview, not this tool.
+    backend:
+      method: GET
+      path: /user
+    input: {}
+
+  # --- Notifications (read status only) ---
+  - name: list_notifications
+    phase: 2
+    kind: read
+    domain: notification
+    description: >-
+      List in-app notifications (latest / export / sync). Filter by type
+      (EXPORT_FAILED, SYNC_*), isRead, search. Use for list/show intents — not
+      get_notification_count alone.
+    backend:
+      method: GET
+      path: /notification
+    input:
+      type: { type: string, optional: true }
+      isRead: { type: boolean, optional: true }
+      search: { type: string, optional: true }
+      limit: { type: integer, optional: true }
+      offset: { type: integer, optional: true }
+
+  - name: get_notification_count
+    phase: 2
+    kind: read
+    domain: notification
+    description: >-
+      Unread notification count. Use only for "how many unread" — for latest /
+      failed export / sync lists use list_notifications.
+    backend:
+      method: GET
+      path: /notification/count
+    input: {}
+
+# -----------------------------------------------------------------------------
+# Agent defaults — enforce in aem-mcp before calling aem-backend
+# -----------------------------------------------------------------------------
+agent_defaults:
+  language: en
+  max_tools_per_turn: 3
+  pagination:
+    list_wallets: { default_limit: 50, max_limit: 100 }
+    list_transactions: { default_limit: 25, max_limit: 50 }
+    list_rules: { default_limit: 50, max_limit: 100 }
+    list_rule_labels: { default_limit: 100, max_limit: 100 }
+    list_rule_contacts: { default_limit: 50, max_limit: 100 }
+    list_notifications: { default_limit: 20, max_limit: 20 }
+  required_filters:
+    list_transactions:
+      - walletIds
+      - or_date_range  # from + to
+  avoid_tools:
+    - get_transaction_summary  # VERY_SLOW until GET /api/mcp/transaction-summary exists
+  prefer_over:
+    get_subscription: get_subscription_status
+    get_wallet_summary: get_account_overview
+    get_subscription_status: get_account_overview
+    get_subscription_available_limits: get_account_overview
+    # Do NOT prefer overview over get_user_profile for currency/prefs.
+    # Do NOT prefer get_rule_count / get_contact_count over list_* for list/show intents.
+    get_rule_count: list_rules  # when user asks to list/show rules
+    get_contact_count: list_rule_contacts  # when user asks to list/show contacts
+    get_notification_count: list_notifications  # when user asks for latest/filtered notifications
+    get_rule_label: list_rule_labels  # taxonomy / "what labels" without a known id
+
+# -----------------------------------------------------------------------------
+# Example user journeys (read-only chat)
+# -----------------------------------------------------------------------------
+example_user_journeys:
+  - id: account_overview
+    user_intent: Quick snapshot of account health
+    example_questions:
+      - "Summarize my account"
+      - "How many wallets do I have?"
+      - "What plan am I on?"
+      - "Am I set up correctly?"
+    tool_sequence:
+      - get_account_overview
+    response_style: Short numbers first, offer to drill down
+
+  - id: wallet_lookup
+    user_intent: Find a specific wallet or list wallets
+    example_questions:
+      - "List my wallets"
+      - "Show wallets on Ethereum"
+      - "Do I have any USDT wallets?"
+    tool_sequence:
+      - list_wallets
+    notes: Always pass limit; use q for asset/name search; chain/archived when relevant
+
+  - id: transaction_count
+    user_intent: How many transactions in a period
+    example_questions:
+      - "How many transactions in March?"
+      - "Transaction count this month for my main wallet"
+      - "How many unlabeled transactions?"
+    tool_sequence:
+      - list_wallets
+      - get_transaction_count
+    notes: Resolve walletIds first if user names a wallet; unlabeled → ruleLabelId=0; direction → type=buy|sell|internal
+
+  - id: recent_transactions
+    user_intent: See recent activity
+    example_questions:
+      - "Show my last 10 transactions"
+      - "Recent outgoing transactions"
+    tool_sequence:
+      - list_wallets
+      - list_transactions
+    notes: Require walletIds + date range; default limit 25; type/ruleLabelId when user filters
+
+  - id: biggest_transactions
+    user_intent: Rank transactions by fiat size
+    example_questions:
+      - "Show my biggest recent transactions"
+      - "Largest transactions this month"
+    tool_sequence:
+      - list_transactions
+    notes: sortBy=converted_amount order=desc; pass from+to or walletIds; set limit
+
+  - id: deposit_withdrawal_trades
+    user_intent: List deposits, withdrawals, or trades for a period
+    example_questions:
+      - "List deposits this month"
+      - "List withdrawals this month"
+      - "Show trades / swaps this month"
+    tool_sequence:
+      - list_rule_labels
+      - list_transactions
+    notes: >-
+      First tool MUST be list_rule_labels. Then list_transactions with ruleLabelId + dates.
+      Never invent tool names. If no label matches, say so.
+
+  - id: single_transaction
+    user_intent: Explain one transaction
+    example_questions:
+      - "What is transaction 12345?"
+    tool_sequence:
+      - get_transaction
+    notes: Use transaction id from UI context when available
+
+  - id: tx_hash_lookup
+    user_intent: Explain a transaction by hash
+    example_questions:
+      - "Explain this tx hash"
+      - "What is transaction 0xabc...?"
+    tool_sequence:
+      - list_transactions
+      - get_transaction
+    notes: Pass search=<hash> with from+to or walletIds; then get_transaction by matched id. If none, say so.
+
+  - id: rules_and_labels
+    user_intent: Understand automation and taxonomy
+    example_questions:
+      - "What rules do I have for Binance?"
+      - "What labels can I use?"
+      - "List my rule contacts"
+      - "Is address 0x... already a contact?"
+      - "How many rules do I have?"
+      - "How many contacts do I have?"
+    tool_sequence:
+      - list_rule_labels
+      - list_rules
+      - list_rule_contacts
+      - search_rule_contacts
+      - get_rule_count
+      - get_contact_count
+    notes: >-
+      List/show → list_rules / list_rule_labels / list_rule_contacts.
+      Count-only ("how many") → get_rule_count / get_contact_count.
+      Address paste → search_rule_contacts.
+
+  - id: subscription_limits
+    user_intent: Plan and quota questions
+    example_questions:
+      - "Am I on Pro?"
+      - "How many wallets can I still add?"
+    tool_sequence:
+      - get_subscription_status
+      - get_subscription_available_limits
+      - get_subscription_used_limits
+    notes: Do not call full GET /subscription
+
+  - id: export_ready
+    user_intent: Find a completed export download
+    example_questions:
+      - "Where is my CSV export?"
+      - "Any downloads ready?"
+      - "Get my latest notifications"
+      - "Any failed exports?"
+      - "Any sync/import status notifications?"
+    tool_sequence:
+      - list_notifications
+    notes: >-
+      Always list_notifications for latest/failed/sync (type=EXPORT_FAILED or SYNC_*).
+      get_notification_count only for unread count questions. Read-only.
+

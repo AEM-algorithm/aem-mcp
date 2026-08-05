@@ -1,0 +1,167 @@
+name: CI/CD for aem-mcp (dev + prod)
+
+on:
+  push:
+    branches:
+      - develop
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - develop
+      - main
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: aem-mcp
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+  build:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build & Tag Docker Image
+        id: docker-tag
+        run: |
+          if [[ "${GITHUB_REF}" == "refs/heads/develop" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="dev-${GITHUB_SHA:0:7}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Docker Image Tag: $TAG"
+          docker buildx build --platform linux/amd64 --load \
+            -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:$TAG .
+
+      - name: Push Docker Image
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
+
+    outputs:
+      tag: ${{ steps.docker-tag.outputs.tag }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Check AWS CLI Version
+        run: aws --version
+
+      - name: Set Deploy Tag
+        id: set-tag
+        run: |
+          TAG="${{ needs.build.outputs.tag }}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+          if [[ "${GITHUB_REF}" == "refs/heads/develop" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "instance_id=${{ secrets.INSTANCE_ID_DEV }}" >> $GITHUB_OUTPUT
+            echo "region=${{ secrets.AWS_REGION_DEV }}" >> $GITHUB_OUTPUT
+          else
+            echo "instance_id=${{ secrets.INSTANCE_ID_PROD }}" >> $GITHUB_OUTPUT
+            echo "region=${{ secrets.AWS_REGION_PROD }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy via SSM
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+        run: |
+          IMAGE_NAME="aem-mcp"
+          TAG="${{ steps.set-tag.outputs.tag }}"
+          REGION="${{ steps.set-tag.outputs.region }}"
+          INSTANCE_ID="${{ steps.set-tag.outputs.instance_id }}"
+
+          COMMANDS="[
+            \"docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD\",
+            \"cd /root/apps\",
+            \"docker pull $DOCKER_USERNAME/$IMAGE_NAME:$TAG\",
+            \"grep -q '^MCP_IMAGE_NAME=' .env && sed -i'' 's|^MCP_IMAGE_NAME=.*|MCP_IMAGE_NAME=$DOCKER_USERNAME/$IMAGE_NAME:$TAG|' .env || echo 'MCP_IMAGE_NAME=$DOCKER_USERNAME/$IMAGE_NAME:$TAG' >> .env\",
+            \"docker compose --env-file .env stop aem-mcp\",
+            \"docker compose --env-file .env up -d aem-mcp\",
+            \"docker image prune -a -f\"
+          ]"
+
+          set -e
+          echo "Deploying $IMAGE_NAME:$TAG to EC2 instance $INSTANCE_ID in $REGION..."
+
+          COMMAND_ID=$(aws ssm send-command \
+            --region "$REGION" \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy $IMAGE_NAME:$TAG" \
+            --parameters commands="$COMMANDS" \
+            --timeout-seconds 600 \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "Waiting for command $COMMAND_ID to finish..."
+
+          STATUS="Pending"
+          for i in {1..60}; do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --region "$REGION" \
+              --query "Status" \
+              --output text 2>/dev/null || echo "Pending")
+            echo "Status: $STATUS"
+            if [[ "$STATUS" == "Success" ]]; then
+              curl -X POST -H 'Content-type: application/json' \
+                --data "{\"text\":\"✅ *Deploy success:* $IMAGE_NAME:$TAG\"}" "$SLACK_WEBHOOK"
+              exit 0
+            elif [[ "$STATUS" == "Failed" || "$STATUS" == "Cancelled" || "$STATUS" == "TimedOut" ]]; then
+              curl -X POST -H 'Content-type: application/json' \
+                --data "{\"text\":\"❌ *Deploy failed:* $IMAGE_NAME:$TAG - Status: $STATUS\"}" "$SLACK_WEBHOOK"
+              exit 1
+            fi
+            sleep 5
+          done
+
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"⚠️ *Deploy timeout (unknown status)* for $IMAGE_NAME:$TAG after 5 minutes\"}" "$SLACK_WEBHOOK"
+          exit 1

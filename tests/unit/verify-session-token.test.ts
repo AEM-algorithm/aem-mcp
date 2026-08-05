@@ -2,7 +2,7 @@ import { verifySessionToken } from '../../src/auth/verify-session-token';
 
 describe('verifySessionToken', () => {
   const env = {
-    PORT: 3002,
+    PORT: 3000,
     NODE_ENV: 'test' as const,
     AEM_BACKEND_URL: 'http://localhost:3000/api',
     JWT_SECRET: 'test-secret',

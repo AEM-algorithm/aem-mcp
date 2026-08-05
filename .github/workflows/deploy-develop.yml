@@ -1,0 +1,141 @@
+# Manually deploy a chosen branch to the develop environment.
+# Rebuild = build a new image from the branch and deploy. Redeploy = deploy an existing image by tag.
+name: Deploy branch to develop (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_mode:
+        description: 'Rebuild image from branch or redeploy existing image'
+        required: true
+        type: choice
+        options:
+          - rebuild
+          - redeploy_without_build
+        default: rebuild
+      image_tag:
+        description: 'Image tag to deploy (required when Redeploy without build; e.g. dev-feature-xyz)'
+        required: false
+        type: string
+
+env:
+  IMAGE_NAME: aem-mcp
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        if: inputs.build_mode == 'rebuild'
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        if: inputs.build_mode == 'rebuild'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: inputs.build_mode == 'rebuild'
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build & Tag Docker Image
+        if: inputs.build_mode == 'rebuild'
+        id: docker-tag
+        run: |
+          BRANCH_SLUG="${GITHUB_REF#refs/heads/}"
+          BRANCH_SLUG="${BRANCH_SLUG//\//-}"
+          TAG="dev-${BRANCH_SLUG}"
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Docker Image Tag: $TAG"
+          docker buildx build --platform linux/amd64 --load \
+            -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:$TAG .
+
+      - name: Push Docker Image
+        if: inputs.build_mode == 'rebuild'
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
+
+      - name: Set deploy tag
+        id: set-tag
+        run: |
+          if [ "${{ inputs.build_mode }}" == "rebuild" ]; then
+            echo "tag=${{ env.TAG }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+          fi
+
+    outputs:
+      tag: ${{ steps.set-tag.outputs.tag }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Check AWS CLI Version
+        run: aws --version
+
+      - name: Deploy via SSM
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          IMAGE_NAME="aem-mcp"
+          TAG="${{ needs.build.outputs.tag }}"
+          REGION="${{ secrets.AWS_REGION_DEV }}"
+          INSTANCE_ID="${{ secrets.INSTANCE_ID_DEV }}"
+
+          COMMANDS="[
+            \"docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD\",
+            \"cd /root/apps\",
+            \"docker pull $DOCKER_USERNAME/$IMAGE_NAME:$TAG\",
+            \"grep -q '^MCP_IMAGE_NAME=' .env && sed -i'' 's|^MCP_IMAGE_NAME=.*|MCP_IMAGE_NAME=$DOCKER_USERNAME/$IMAGE_NAME:$TAG|' .env || echo 'MCP_IMAGE_NAME=$DOCKER_USERNAME/$IMAGE_NAME:$TAG' >> .env\",
+            \"docker compose --env-file .env stop aem-mcp\",
+            \"docker compose --env-file .env up -d aem-mcp\",
+            \"docker image prune -a -f\"
+          ]"
+
+          set -e
+          echo "Deploying $IMAGE_NAME:$TAG to EC2 instance $INSTANCE_ID in $REGION..."
+
+          COMMAND_ID=$(aws ssm send-command \
+            --region "$REGION" \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy $IMAGE_NAME:$TAG" \
+            --parameters commands="$COMMANDS" \
+            --timeout-seconds 600 \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "Waiting for command $COMMAND_ID to finish..."
+
+          STATUS="Pending"
+          for i in {1..60}; do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --region "$REGION" \
+              --query "Status" \
+              --output text 2>/dev/null || echo "Pending")
+            echo "Status: $STATUS"
+            if [[ "$STATUS" == "Success" ]]; then
+              curl -X POST -H 'Content-type: application/json' \
+                --data "{\"text\":\"✅ *Deploy success:* $IMAGE_NAME:$TAG\"}" "$SLACK_WEBHOOK"
+              exit 0
+            elif [[ "$STATUS" == "Failed" || "$STATUS" == "Cancelled" || "$STATUS" == "TimedOut" ]]; then
+              curl -X POST -H 'Content-type: application/json' \
+                --data "{\"text\":\"❌ *Deploy failed:* $IMAGE_NAME:$TAG - Status: $STATUS\"}" "$SLACK_WEBHOOK"
+              exit 1
+            fi
+            sleep 5
+          done
+
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"⚠️ *Deploy timeout (unknown status)* for $IMAGE_NAME:$TAG after 5 minutes\"}" "$SLACK_WEBHOOK"
+          exit 1
