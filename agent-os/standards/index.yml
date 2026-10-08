@@ -1,0 +1,27 @@
+# Agent-OS Standards Index
+
+This index tracks standards applied across specs. Each entry is a stable identifier
+referenced by specs and enforced in code review.
+
+Format:
+```yaml
+- id: <standard-id>
+  source: <spec-folder>
+  status: <draft|active|deprecated>
+  summary: <one-line>
+```
+
+## Active standards
+
+- id: api/response-format
+  source: specs/2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth
+  status: active
+  summary: All REST endpoints use the `{ ok, data, error }` envelope from src/utils/response.ts.
+- id: api/error-handling
+  source: specs/2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth
+  status: active
+  summary: Errors are one of OAuthError (new), RestError, or AuthError; src/utils/error.ts dispatches.
+- id: auth/session-vs-access-token
+  source: specs/2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth
+  status: active
+  summary: verify-session-token.ts dispatches by JWT claim shape (id:number for session, sub/aud/jti for MCP access).
