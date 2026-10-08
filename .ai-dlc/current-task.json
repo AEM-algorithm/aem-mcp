@@ -5,6 +5,14 @@
   "specVersion": "2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth",
   "specPath": "agent-os/specs/2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth",
   "branch": "feature/DEV-4154-aem-mcp-external-agent-auth-spec",
+  "pr": {
+    "url": "https://github.com/AEM-algorithm/aem-mcp/pull/5",
+    "number": 5,
+    "base": "develop",
+    "head": "feature/DEV-4154-aem-mcp-external-agent-auth-spec",
+    "state": "open",
+    "createdAt": "2026-10-08T17:05:11Z"
+  },
   "taskTier": "High",
   "reviewers": [
     "henry",
