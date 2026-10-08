@@ -21,13 +21,15 @@ chatbot (MCP client)
 
 ## Quick start
 
+Full local setup (aem-mcp + chatbot wiring): [docs/SETUP_AND_CHATBOT_INTEGRATION.md](docs/SETUP_AND_CHATBOT_INTEGRATION.md).
+
 ```bash
 cp .env.example .env
 npm install
 npm run dev
 ```
 
-Default port: `3000`.
+Default port: `3000`. If aem-backend already uses `3000`, set `PORT=3002` and point chatbot `AEM_MCP_URL` at that port.
 
 Endpoints:
 

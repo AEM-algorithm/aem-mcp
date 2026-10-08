@@ -82,7 +82,7 @@ export function startServer(env: Env): void {
   const app = createMcpApp(env);
   // Bind 0.0.0.0 so the container is reachable on EC2 / Docker networks
   app.listen(env.PORT, '0.0.0.0', () => {
-    // eslint-disable-next-line no-console
+     
     console.log(`aem-mcp listening on 0.0.0.0:${env.PORT}`);
   });
 }

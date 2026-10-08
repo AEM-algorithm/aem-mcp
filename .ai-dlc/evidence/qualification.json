@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "window": { "start": null, "end": null },
+  "gates": {
+    "machineVerifiableRequirements": { "passed": false, "evidence": [], "measuredAt": null, "owner": null },
+    "testConstraintSurface": { "passed": false, "evidence": [], "measuredAt": null, "owner": null },
+    "selfVerifyingLoop": { "passed": false, "evidence": [], "measuredAt": null, "owner": null },
+    "sandboxAndBoundaries": { "passed": false, "evidence": [], "measuredAt": null, "owner": null },
+    "checkpointRecovery": { "passed": false, "evidence": [], "measuredAt": null, "owner": null },
+    "safeEscalation": { "passed": false, "evidence": [], "measuredAt": null, "owner": null },
+    "auditReconstruction": { "passed": false, "evidence": [], "measuredAt": null, "owner": null },
+    "stagingAndRollback": { "passed": false, "evidence": [], "measuredAt": null, "owner": null }
+  },
+  "metrics": {
+    "agentFirstPullRequestPercent": { "value": null, "source": null, "window": null },
+    "structuredSpecPercent": { "value": null, "source": null, "window": null },
+    "significantReworkPercent": { "value": null, "source": null, "window": null },
+    "humanReworkPercent": { "value": null, "source": null, "window": null },
+    "issueToMergeImprovementPercent": { "value": null, "source": null, "window": null },
+    "coverageRegressed": { "value": null, "source": null, "window": null },
+    "escapedDefectRateIncreased": { "value": null, "source": null, "window": null },
+    "requiredCheckExecutionPercent": { "value": null, "source": null, "window": null },
+    "agentFirstStories": { "value": null, "source": null, "window": null },
+    "eligiblePullRequests": { "value": null, "source": null, "window": null },
+    "activeDevelopers": { "value": null, "source": null, "window": null },
+    "selfCorrectionCases": { "value": null, "source": null, "window": null }
+  }
+}
