@@ -105,6 +105,46 @@ describe('store.get', () => {
   });
 });
 
+describe('store.getByUserCode', () => {
+  it('finds a row by its user_code', () => {
+    const store = createDeviceCodesStore();
+    const now = Date.now();
+    const userCode = 'ABCD-EFGH';
+    store.insert({
+      deviceCode: 'dev-1',
+      userCode,
+      clientId: 'claude-code',
+      scope: 'aem-mcp:read',
+      expiresAt: new Date(now + 60_000).toISOString(),
+      intervalSeconds: 2,
+      status: 'pending',
+    });
+    const row = store.getByUserCode(userCode);
+    expect(row).toBeDefined();
+    expect(row?.userCode).toBe(userCode);
+  });
+
+  it('returns undefined for unknown user_code', () => {
+    const store = createDeviceCodesStore();
+    expect(store.getByUserCode('ZZZZ-9999')).toBeUndefined();
+  });
+
+  it('returns undefined for expired row and lazy-deletes it', () => {
+    const store = createDeviceCodesStore();
+    store.insert({
+      deviceCode: 'dev-2',
+      userCode: 'WXYZ-1234',
+      clientId: 'claude-code',
+      scope: 'aem-mcp:read',
+      expiresAt: new Date(Date.now() - 1).toISOString(),
+      intervalSeconds: 2,
+      status: 'pending',
+    });
+    expect(store.getByUserCode('WXYZ-1234')).toBeUndefined();
+    expect(store.getByUserCode('WXYZ-1234')).toBeUndefined();
+  });
+});
+
 describe('store.approve / deny', () => {
   it('approve marks status=approved and stores userId+jti', () => {
     const store = createDeviceCodesStore();

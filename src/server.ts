@@ -4,11 +4,13 @@ import express, { type Request, type Response } from 'express';
 
 import { AuthError, extractSessionToken, verifySessionToken } from './auth/verify-session-token';
 import { createAemBackendClient } from './clients/aem-backend-client';
+import { createAemBackendOAuthClient } from './clients/aem-backend-oauth-client';
 import type { Env } from './config/env';
 import { createDeviceCodesStore } from './oauth/device-codes';
 import { BackendError } from './errors/backend-error';
 import { ToolPolicyError } from './errors/tool-policy-error';
 import { createIssuer } from './oauth/issuer';
+import { createLoginExchangeRouter } from './oauth/login-exchange-handler';
 import { createPairingsStore } from './oauth/pairings';
 import { createRateLimiter } from './oauth/rate-limit';
 import { createRevocationStore } from './oauth/revocation';
@@ -76,6 +78,14 @@ export function createMcpApp(env: Env): express.Express {
     devicePollIntervalSeconds: env.OAUTH_DEVICE_POLL_INTERVAL_SECONDS,
   });
   app.use(oauthRouter);
+  app.use(
+    createLoginExchangeRouter({
+      aemBackendOAuth: createAemBackendOAuthClient(env),
+      deviceCodes,
+      env,
+      oauthEnabled: env.OAUTH_ENABLED,
+    }),
+  );
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', service: 'aem-mcp' });

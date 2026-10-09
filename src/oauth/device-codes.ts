@@ -21,6 +21,7 @@ export type DeviceCodeRow = {
 export type DeviceCodesStore = {
   insert: (row: DeviceCodeRow) => void;
   get: (deviceCode: string) => DeviceCodeRow | undefined;
+  getByUserCode: (userCode: string) => DeviceCodeRow | undefined;
   approve: (deviceCode: string, userId: number, jti: string) => DeviceCodeRow;
   deny: (deviceCode: string) => DeviceCodeRow;
   remove: (deviceCode: string) => boolean;
@@ -96,6 +97,21 @@ export function createDeviceCodesStore(opts: {
         return undefined;
       }
       return row;
+    },
+    getByUserCode(userCode) {
+      // user_code is short (XXXX-XXXX) and readable; not a secret.
+      // Linear scan is fine for the volumes here (one row per agent attempt).
+      for (const row of map.values()) {
+        if (row.userCode === userCode) {
+          if (isExpired(row)) {
+            // Lazy delete: caller sees undefined for an expired code.
+            map.delete(hashDeviceCode(row.deviceCode));
+            return undefined;
+          }
+          return row;
+        }
+      }
+      return undefined;
     },
     approve(deviceCode, userId, jti) {
       const key = hashDeviceCode(deviceCode);
