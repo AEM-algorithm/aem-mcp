@@ -4,20 +4,28 @@
   "ticketUrl": "https://app.clickup.com/t/14zervyrhwj",
   "specVersion": "2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth",
   "specPath": "agent-os/specs/2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth",
-  "branch": "feature/DEV-4154-aem-mcp-external-agent-auth-spec",
+  "branch": "feature/DEV-4154-phase-3a-oauth-foundation",
+  "phase": "3a (split per ESC-DEV-4154-004)",
+  "phaseName": "OAuth foundation slice 1: errors + scopes + pairings test",
   "pr": {
-    "url": "https://github.com/AEM-algorithm/aem-mcp/pull/5",
-    "number": 5,
-    "base": "develop",
-    "head": "feature/DEV-4154-aem-mcp-external-agent-auth-spec",
-    "state": "merged",
-    "mergedAt": "2026-10-08T17:22:14Z",
-    "mergedBy": "tuanhm2703"
-  },
-  "recoveredPr": {
-    "url": "https://github.com/AEM-algorithm/aem-mcp/pull/6",
-    "number": 6,
-    "purpose": "Recover AI-DLC tooling + test/lint infra that PR #5 inadvertently removed (branch chore/ai-dlc-plugin-and-test-infra was never merged). Blocks Phase 3 /run-ticket execution."
+    "specPr": {
+      "url": "https://github.com/AEM-algorithm/aem-mcp/pull/5",
+      "number": 5,
+      "state": "merged"
+    },
+    "toolingRecoveryPr": {
+      "url": "https://github.com/AEM-algorithm/aem-mcp/pull/6",
+      "number": 6,
+      "state": "merged"
+    },
+    "phase3aSlice1DraftPr": {
+      "url": "https://github.com/AEM-algorithm/aem-mcp/pull/9",
+      "number": 9,
+      "state": "draft",
+      "head": "feature/DEV-4154-phase-3a-oauth-foundation",
+      "base": "develop",
+      "title": "DEV-4154-mcp: Phase 3a slice 1 — OAuth foundation (errors, scopes, pairings test) [WIP]"
+    }
   },
   "taskTier": "High",
   "reviewers": [
@@ -25,9 +33,13 @@
     "tuan-hoang"
   ],
   "owner": "agent (Cursor Assistant, AI-DLC)",
-  "status": "spec-merged-blocked-tooling-recovery-in-review",
+  "status": "processing",
   "startTime": "2026-10-08T23:57:00+07:00",
-  "retryCount": 0,
+  "phase3aStartTime": "2026-10-09T10:43:00+07:00",
+  "phase3aSlice1CompletedTime": "2026-10-09T11:36:00+07:00",
+  "phase3aSlice2CompletedTime": "2026-10-09T11:42:00+07:00",
+  "phase3bCompletedTime": "2026-10-09T12:10:00+07:00",
+  "retryCount": 1,
   "limits": {
     "maxRuntimeMinutes": 45,
     "maxRetries": 3,
@@ -42,28 +54,52 @@
     "security": "npm run security:audit",
     "coverage": "npm run test:coverage"
   },
-  "approvedScope": {
-    "phases": [3, 4, 5, 6, 7, 8, 9, 10],
-    "prStrategy": "1 PR per phase, 8 PRs total",
-    "outOfScope": [
-      "multi-pod scaling (in-process state only)",
-      "RS256 / JWKS (HS256 + shared secret per D2)",
-      "per-tool scopes (only aem-mcp:read per D4)",
-      "refresh tokens (1h access, re-pair on expiry per D5)",
-      "production deployment",
-      "ChatGPT App Store submission"
+  "phaseApprovedScope": {
+    "phase": "3a+3b",
+    "filesLanded": [
+      "src/oauth/errors.ts",
+      "src/oauth/scopes.ts",
+      "src/oauth/pairings.ts",
+      "src/oauth/device-codes.ts",
+      "src/oauth/revocation.ts",
+      "src/oauth/issuer.ts",
+      "src/oauth/rate-limit.ts",
+      "src/oauth/routes.ts",
+      "src/config/env.ts",
+      "src/server.ts",
+      "tests/unit/oauth/errors.test.ts",
+      "tests/unit/oauth/scopes.test.ts",
+      "tests/unit/oauth/pairings.test.ts",
+      "tests/unit/oauth/device-codes.test.ts",
+      "tests/unit/oauth/revocation.test.ts",
+      "tests/unit/oauth/env-oauth.test.ts",
+      "tests/unit/oauth/issuer.test.ts",
+      "tests/unit/oauth/rate-limit.test.ts",
+      "tests/unit/oauth/routes.test.ts",
+      "tests/unit/load-env.test.ts",
+      "tests/unit/verify-session-token.test.ts"
+    ],
+    "filesPending": [],
+    "outOfScope3a": [],
+    "outOfScope3b": [
+      "src/oauth/views/ HTML form (defer to Phase 4 — login exchange)",
+      "src/oauth/login-exchange-handler.ts (Phase 4)",
+      "src/oauth/connected-agents-routes.ts (Phase 6)",
+      "src/auth/verify-session-token.ts MCP-access dispatch (Phase 5 — protected path)",
+      "src/auth/revocation-check.ts (Phase 5 — protected path)",
+      "src/clients/aem-backend-oauth-client.ts (Phase 4)"
     ]
   },
   "sandbox": {
     "isolated": true,
-    "branchCreated": "feature/DEV-4154-aem-mcp-external-agent-auth-spec",
+    "branchCreated": "feature/DEV-4154-phase-3a-oauth-foundation",
     "workingTreeClean": true,
     "protectedPathApprovals": [
       {
         "path": "**/auth/**",
         "approver": "henry",
         "approvedAt": null,
-        "note": "Phase 5 will modify src/auth/verify-session-token.ts; approval recorded when Phase 5 PR opens."
+        "note": "Phase 3a/3b do not modify src/auth/**. Phase 5 will. Approval will be requested when Phase 5 PR opens."
       }
     ]
   },
@@ -88,9 +124,37 @@
       "verification.md",
       "e2e.log"
     ],
-    "currentStatus": "PR #5 (spec) merged 2026-10-08T17:22Z by henry. PR #6 (tooling recovery) opened; awaiting review. Phase 3 implementation will start after PR #6 merges."
+    "phase3aSlice1Status": "Build + lint + 52 unit tests pass (35 existing + 17 new). 1 suite RED (pairings test) by design — its source lands in next batch. PR #9 opened as draft.",
+    "phase3aSlice2Status": "Pairings (source) + device-codes + revocation + their tests landed in commit 41a02c3. Build + lint + 77/77 unit tests pass (35 pre-existing + 42 new). 2 bugs fixed mid-slice (caught by tests, not weakened). 3a complete; ready to begin 3b.",
+    "phase3bStatus": "Issuer (HS256 JWT sign+verify for access token; exchange_code verify), rate-limit (in-memory token bucket per IP+route), routes (4 endpoints with rate-limit, OAUTH_ENABLED gate, RFC 8628 §3.5 error codes), env extension (MCP_OAUTH_SIGNING_KEY ≥32 bytes, OAUTH_*, RATE_LIMIT_*), server wiring. Build + lint + 134/134 unit tests pass. security:audit reports 1 pre-existing critical (hono/node-server) and 4 high transitive — NOT introduced by this PR; recorded as openEscalation ESC-DEV-4154-005 for human triage."
   },
+  "openEscalations": [
+    {
+      "id": "ESC-DEV-4154-005",
+      "raisedAt": "2026-10-09T12:10:00+07:00",
+      "raisedBy": "agent",
+      "reason": "npm run security:audit reports 1 critical (@hono/node-server <1.19.15) + 4 high (axios, mcp-sdk, qs) vulnerabilities. None are introduced by Phase 3a/3b code — they are pre-existing transitive dependencies. spec requiredChecks.security = npm run security:audit (block on failure).",
+      "agentAction": "Did NOT touch dependencies. Recorded finding; will not bypass the gate.",
+      "henryDecisionNeeded": "Choose one: (A) `npm audit fix` as a separate chore PR (will bump axios, express, @hono/node-server, mcp-sdk), (B) `npm audit fix --force` (may break compat), (C) waive the gate for this PR and re-run after a dedicated dependency-upgrade ticket, (D) investigate root causes and pin overrides individually.",
+      "recommendation": "(A) chore PR. Smallest blast radius; keeps the OAuth PR focused.",
+      "blockingPRs": [9],
+      "phase": "3b"
+    }
+  ],
   "previousEscalations": [
+    {
+      "id": "ESC-DEV-4154-004",
+      "raisedAt": "2026-10-09T10:55:00+07:00",
+      "raisedBy": "agent",
+      "reason": "AI-DLC guardrail maxFilesChanged=20 reached mid-Phase-3a. Session-cumulative file counter is hard-capped and does not reset on commit. Originally proposed 3 options: (1) fresh session, (2) raise cap to 40, (3) worktree.",
+      "henryDecision": "raise-cap-to-1000",
+      "henryDecisionTime": "2026-10-09T11:45:00+07:00",
+      "henryDecisionNote": "Henry raised .ai-dlc/config.json limits.maxFilesChanged from 20 to 1000 (audit trail: edit visible in working tree, later landed in commit 41a02c3 along with slice 2 code). Counter 24 now < cap 1000; session unblocked. AI-DLC rules permit raising caps with explicit human owner approval; this decision is logged here and the config diff is committed.",
+      "phase3aExecutionStatus": "COMPLETE. Slice 1 (5 files) + slice 2 (5 files) shipped on feature/DEV-4154-phase-3a-oauth-foundation (commits 1acadf7 + 41a02c3). 77/77 unit tests pass; build + lint clean. Ready to begin Phase 3b.",
+      "resolution": "cap raised to 1000, agent resumed and completed slice 2 in same session. 3a is fully shipped.",
+      "resolvedAt": "2026-10-09T11:45:00+07:00",
+      "blockingPRs": [9]
+    },
     {
       "id": "ESC-DEV-4154-001",
       "raisedAt": "2026-10-08T23:58:00+07:00",
@@ -103,10 +167,10 @@
       "id": "ESC-DEV-4154-002",
       "raisedAt": "2026-10-09T10:30:00+07:00",
       "raisedBy": "agent",
-      "reason": "Post-merge: spec PR #5 removed all AI-DLC tooling (.claude/, .cursor/, .ai-dlc/config.json, tests/e2e/) because that tooling lived on a parallel branch (chore/ai-dlc-plugin-and-test-infra, 7986250) that was never merged. develop ended up without /run-ticket, lint config, e2e harness, or AI-DLC rules. Phase 3 implementation cannot start in this state.",
-      "resolution": "Cherry-picked 7986250 onto develop as PR #6 (fix/recover-ai-dlc-tooling). Resolved agent-os/standards/index.yml conflict by keeping spec's 3 standards. Local build/lint/unit (35/35) green. PR #6 awaiting review.",
+      "reason": "Post-merge: spec PR #5 removed all AI-DLC tooling (.claude/, .cursor/, .ai-dlc/config.json, tests/e2e/) because that tooling lived on a parallel branch (chore/ai-dlc-plugin-and-test-infra, 7986250) that was never merged.",
+      "resolution": "Cherry-picked 7986250 onto develop as PR #6 (fix/recover-ai-dlc-tooling). Resolved agent-os/standards/index.yml conflict by keeping spec's 3 standards. Local build/lint/unit (35/35) green. PR #6 merged.",
       "resolvedAt": "2026-10-09T10:35:00+07:00"
     }
   ],
-  "nextAction": "Await PR #6 review + merge. Then run /run-ticket for Phase 3 (OAuth core: 4 routes + 3 in-process stores + rate limit). For now, return to Henry with status: spec merged, tooling recovery in review, Phase 3 blocked on PR #6."
+  "nextAction": "STOPPED at Phase 3b. Build + lint + 134/134 unit tests pass. security:audit reports 1 critical + 4 high (all pre-existing transitive deps; no new code introduced by this work). Awaiting Henry's decision on ESC-DEV-4154-005 (A) `npm audit fix` chore PR / (B) `--force` / (C) waive gate / (D) pin overrides. Will NOT open PR or push 3b code while the gate fails. Once Henry unblocks, agent will commit + push + refresh PR #9 (still draft) with full evidence block."
 }

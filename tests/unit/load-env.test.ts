@@ -23,6 +23,7 @@ describe('loadEnv', () => {
     const env = loadEnv({
       NODE_ENV: 'production',
       JWT_SECRET: 'prod-secret',
+      MCP_OAUTH_SIGNING_KEY: 'a'.repeat(32),
     });
 
     expect(env.JWT_SECRET).toBe('prod-secret');
