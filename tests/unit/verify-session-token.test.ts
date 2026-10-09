@@ -1,12 +1,12 @@
+import type { Env } from '../../src/config/env';
 import { verifySessionToken } from '../../src/auth/verify-session-token';
 
 describe('verifySessionToken', () => {
+  // The session-token verifier only reads JWT_SECRET; the other Env
+  // fields are added in later phases. We cast to keep this test focused.
   const env = {
-    PORT: 3000,
-    NODE_ENV: 'test' as const,
-    AEM_BACKEND_URL: 'http://localhost:3000/api',
     JWT_SECRET: 'test-secret',
-  };
+  } as unknown as Env;
 
   it('returns session context for a valid token', () => {
     const jwt = require('jsonwebtoken');
