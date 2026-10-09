@@ -29,6 +29,11 @@ npm install
 npm run dev
 ```
 
+## External Agent Authentication
+
+External agents (Claude Code, ChatGPT, Codex, Cursor, custom clients) connect to `aem-mcp` via OAuth 2.0 Device Authorization Grant (RFC 8628). See [docs/EXTERNAL_AGENT_CONNECTORS.md](docs/EXTERNAL_AGENT_CONNECTORS.md) for connector configuration for each client, plus troubleshooting and workarounds for non-compliant clients.
+
+
 Default port: `3000`. If aem-backend already uses `3000`, set `PORT=3002` and point chatbot `AEM_MCP_URL` at that port.
 
 Endpoints:
