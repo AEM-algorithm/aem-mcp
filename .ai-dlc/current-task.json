@@ -25,7 +25,7 @@
     "tuan-hoang"
   ],
   "owner": "agent (Cursor Assistant, AI-DLC)",
-  "status": "spec-merged-blocked-tooling-recovery-in-review",
+  "status": "tooling-recovered-ready-for-phase-3",
   "startTime": "2026-10-08T23:57:00+07:00",
   "retryCount": 0,
   "limits": {
@@ -108,5 +108,5 @@
       "resolvedAt": "2026-10-09T10:35:00+07:00"
     }
   ],
-  "nextAction": "Await PR #6 review + merge. Then run /run-ticket for Phase 3 (OAuth core: 4 routes + 3 in-process stores + rate limit). For now, return to Henry with status: spec merged, tooling recovery in review, Phase 3 blocked on PR #6."
+  "nextAction": "Checkout develop. Start /run-ticket for Phase 3 (OAuth core: 4 routes + 3 in-process stores + rate limit). Re-record active task with status=processing."
 }
