@@ -9,6 +9,7 @@ import type { Env } from './config/env';
 import { createDeviceCodesStore } from './oauth/device-codes';
 import { BackendError } from './errors/backend-error';
 import { ToolPolicyError } from './errors/tool-policy-error';
+import { AccessTokenError, verifyAccessToken } from './oauth/access-token-verify';
 import { createIssuer } from './oauth/issuer';
 import { createLoginExchangeRouter } from './oauth/login-exchange-handler';
 import { createPairingsStore } from './oauth/pairings';
@@ -25,6 +26,10 @@ function sendError(res: Response, status: number, message: string): void {
 
 function handleHttpError(res: Response, error: unknown): void {
   if (error instanceof AuthError) {
+    sendError(res, 401, error.message);
+    return;
+  }
+  if (error instanceof AccessTokenError) {
     sendError(res, 401, error.message);
     return;
   }
@@ -97,18 +102,52 @@ export function createMcpApp(env: Env): express.Express {
 
   app.post('/mcp', express.json(), async (req: Request, res: Response) => {
     try {
-      const token = extractSessionToken({
-        authorization: req.header('authorization'),
-        cookie: req.header('cookie'),
-      });
-      const session = verifySessionToken(token, env);
+      const authorization = req.header('authorization');
+      const isBearer = typeof authorization === 'string' && authorization.startsWith('Bearer ');
+
+      let session;
+      let authToken: string;
+      if (isBearer) {
+        // Phase 5: MCP access token path. Verify with MCP_OAUTH_SIGNING_KEY,
+        // check the jti against the revocation map, and resolve to a session
+        // (numeric userId, email best-effort from pairings).
+        const token = authorization!.slice('Bearer '.length).trim();
+        const claims = verifyAccessToken(token, env);
+        if (revocation.isRevoked(claims.jti)) {
+          throw new AuthError('Access token has been revoked');
+        }
+        const pairing = pairings.get(claims.jti);
+        session = {
+          userId: claims.userId,
+          email: undefined,
+          authority: undefined,
+          companyId: undefined,
+          // attach scope for downstream tool policy
+          scope: claims.scope,
+          jti: claims.jti,
+          clientId: pairing?.clientId,
+          authKind: 'mcp-access-token' as const,
+        };
+        authToken = token;
+      } else {
+        // Legacy session-cookie path (unchanged).
+        const token = extractSessionToken({
+          authorization: undefined,
+          cookie: req.header('cookie'),
+        });
+        session = {
+          ...verifySessionToken(token, env),
+          authKind: 'session' as const,
+        };
+        authToken = token;
+      }
 
       const server = new McpServer({
         name: 'aem-mcp',
         version: '0.1.0',
       });
 
-      registerReadTools(server, tools, () => ({ session, token }));
+      registerReadTools(server, tools, () => ({ session: session as never, token: authToken }));
 
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
