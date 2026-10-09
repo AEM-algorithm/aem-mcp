@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/secrets/**)",
+      "Edit(./.env)",
+      "Edit(./.env.*)",
+      "Edit(./**/secrets/**)",
+      "Bash(git push * --force*)",
+      "Bash(git reset --hard*)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "autoAllowBashIfSandboxed": true,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "denyRead": [
+        ".env",
+        ".env.*",
+        "**/secrets/**",
+        "~/.ssh/**",
+        "~/.aws/**",
+        "~/.config/gcloud/**"
+      ],
+      "denyWrite": [
+        ".env",
+        ".env.*",
+        "**/secrets/**"
+      ]
+    }
+  }
+}
