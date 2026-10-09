@@ -4,20 +4,28 @@
   "ticketUrl": "https://app.clickup.com/t/14zervyrhwj",
   "specVersion": "2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth",
   "specPath": "agent-os/specs/2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth",
-  "branch": "feature/DEV-4154-aem-mcp-external-agent-auth-spec",
+  "branch": "feature/DEV-4154-phase-3a-oauth-foundation",
+  "phase": "3a (split per ESC-DEV-4154-004)",
+  "phaseName": "OAuth foundation slice 1: errors + scopes + pairings test",
   "pr": {
-    "url": "https://github.com/AEM-algorithm/aem-mcp/pull/5",
-    "number": 5,
-    "base": "develop",
-    "head": "feature/DEV-4154-aem-mcp-external-agent-auth-spec",
-    "state": "merged",
-    "mergedAt": "2026-10-08T17:22:14Z",
-    "mergedBy": "tuanhm2703"
-  },
-  "recoveredPr": {
-    "url": "https://github.com/AEM-algorithm/aem-mcp/pull/6",
-    "number": 6,
-    "purpose": "Recover AI-DLC tooling + test/lint infra that PR #5 inadvertently removed (branch chore/ai-dlc-plugin-and-test-infra was never merged). Blocks Phase 3 /run-ticket execution."
+    "specPr": {
+      "url": "https://github.com/AEM-algorithm/aem-mcp/pull/5",
+      "number": 5,
+      "state": "merged"
+    },
+    "toolingRecoveryPr": {
+      "url": "https://github.com/AEM-algorithm/aem-mcp/pull/6",
+      "number": 6,
+      "state": "merged"
+    },
+    "phase3aSlice1DraftPr": {
+      "url": "https://github.com/AEM-algorithm/aem-mcp/pull/9",
+      "number": 9,
+      "state": "draft",
+      "head": "feature/DEV-4154-phase-3a-oauth-foundation",
+      "base": "develop",
+      "title": "DEV-4154-mcp: Phase 3a slice 1 — OAuth foundation (errors, scopes, pairings test) [WIP]"
+    }
   },
   "taskTier": "High",
   "reviewers": [
@@ -25,9 +33,11 @@
     "tuan-hoang"
   ],
   "owner": "agent (Cursor Assistant, AI-DLC)",
-  "status": "spec-merged-blocked-tooling-recovery-in-review",
+  "status": "blocked-on-file-cap",
   "startTime": "2026-10-08T23:57:00+07:00",
-  "retryCount": 0,
+  "phase3aStartTime": "2026-10-09T10:43:00+07:00",
+  "phase3aSlice1CompletedTime": "2026-10-09T11:36:00+07:00",
+  "retryCount": 1,
   "limits": {
     "maxRuntimeMinutes": 45,
     "maxRetries": 3,
@@ -42,28 +52,42 @@
     "security": "npm run security:audit",
     "coverage": "npm run test:coverage"
   },
-  "approvedScope": {
-    "phases": [3, 4, 5, 6, 7, 8, 9, 10],
-    "prStrategy": "1 PR per phase, 8 PRs total",
-    "outOfScope": [
-      "multi-pod scaling (in-process state only)",
-      "RS256 / JWKS (HS256 + shared secret per D2)",
-      "per-tool scopes (only aem-mcp:read per D4)",
-      "refresh tokens (1h access, re-pair on expiry per D5)",
-      "production deployment",
-      "ChatGPT App Store submission"
+  "phaseApprovedScope": {
+    "phase": "3a",
+    "filesLanded": [
+      "src/oauth/errors.ts",
+      "src/oauth/scopes.ts",
+      "tests/unit/oauth/errors.test.ts",
+      "tests/unit/oauth/scopes.test.ts",
+      "tests/unit/oauth/pairings.test.ts"
+    ],
+    "filesPending": [
+      "src/oauth/pairings.ts (source for the RED pairings test)",
+      "src/oauth/device-codes.ts + tests/unit/oauth/device-codes.test.ts",
+      "src/oauth/revocation.ts + tests/unit/oauth/revocation.test.ts"
+    ],
+    "outOfScope3a": [
+      "src/server.ts modifications (defer to 3b; requires device-codes, pairings, revocation to exist first)",
+      "src/config/env.ts modifications (defer to 3b)"
+    ],
+    "outOfScope3b": [
+      "src/oauth/issuer.ts + test",
+      "src/oauth/routes.ts + test",
+      "src/oauth/rate-limit.ts + test",
+      "src/server.ts wiring (when 3a stores all exist)",
+      "src/config/env.ts wiring"
     ]
   },
   "sandbox": {
     "isolated": true,
-    "branchCreated": "feature/DEV-4154-aem-mcp-external-agent-auth-spec",
+    "branchCreated": "feature/DEV-4154-phase-3a-oauth-foundation",
     "workingTreeClean": true,
     "protectedPathApprovals": [
       {
         "path": "**/auth/**",
         "approver": "henry",
         "approvedAt": null,
-        "note": "Phase 5 will modify src/auth/verify-session-token.ts; approval recorded when Phase 5 PR opens."
+        "note": "Phase 3a/3b do not modify src/auth/**. Phase 5 will. Approval will be requested when Phase 5 PR opens."
       }
     ]
   },
@@ -88,8 +112,27 @@
       "verification.md",
       "e2e.log"
     ],
-    "currentStatus": "PR #5 (spec) merged 2026-10-08T17:22Z by henry. PR #6 (tooling recovery) opened; awaiting review. Phase 3 implementation will start after PR #6 merges."
+    "phase3aSlice1Status": "Build + lint + 52 unit tests pass (35 existing + 17 new). 1 suite RED (pairings test) by design — its source lands in next batch. PR #9 opened as draft."
   },
+  "openEscalations": [
+    {
+      "id": "ESC-DEV-4154-004",
+      "raisedAt": "2026-10-09T10:55:00+07:00",
+      "raisedBy": "agent",
+      "reason": "AI-DLC guardrail maxFilesChanged=20 reached in this session. Session-cumulative file counter is hard-capped and does not reset on commit. Phase 3a cannot complete in this turn.",
+      "henryDecision": "split-3a-3b",
+      "henryDecisionTime": "2026-10-09T11:34:00+07:00",
+      "phase3aExecutionStatus": "Slice 1 of 2 shipped (5 files). Slice 2 (pairings.ts + device-codes + revocation + their tests) blocked in this session but will complete in a fresh session where cap resets to 0.",
+      "optionsRemaining": [
+        "(1) Fresh /run-ticket phase 3a session — cap resets to 0, agent finishes slice 2 + 3b in ~2 turns",
+        "(2) Raise maxFilesChanged to 40 in .ai-dlc/config.json — requires Henry approval + a config PR",
+        "(3) Spawn best-of-n-runner worktree — cleanest but requires sub-agent capability check"
+      ],
+      "recommendation": "(1) Fresh session. Cleanest, respects the cap, no policy change.",
+      "decisionNeededBy": "Henry",
+      "blockingPRs": [9]
+    }
+  ],
   "previousEscalations": [
     {
       "id": "ESC-DEV-4154-001",
@@ -103,10 +146,10 @@
       "id": "ESC-DEV-4154-002",
       "raisedAt": "2026-10-09T10:30:00+07:00",
       "raisedBy": "agent",
-      "reason": "Post-merge: spec PR #5 removed all AI-DLC tooling (.claude/, .cursor/, .ai-dlc/config.json, tests/e2e/) because that tooling lived on a parallel branch (chore/ai-dlc-plugin-and-test-infra, 7986250) that was never merged. develop ended up without /run-ticket, lint config, e2e harness, or AI-DLC rules. Phase 3 implementation cannot start in this state.",
-      "resolution": "Cherry-picked 7986250 onto develop as PR #6 (fix/recover-ai-dlc-tooling). Resolved agent-os/standards/index.yml conflict by keeping spec's 3 standards. Local build/lint/unit (35/35) green. PR #6 awaiting review.",
+      "reason": "Post-merge: spec PR #5 removed all AI-DLC tooling (.claude/, .cursor/, .ai-dlc/config.json, tests/e2e/) because that tooling lived on a parallel branch (chore/ai-dlc-plugin-and-test-infra, 7986250) that was never merged.",
+      "resolution": "Cherry-picked 7986250 onto develop as PR #6 (fix/recover-ai-dlc-tooling). Resolved agent-os/standards/index.yml conflict by keeping spec's 3 standards. Local build/lint/unit (35/35) green. PR #6 merged.",
       "resolvedAt": "2026-10-09T10:35:00+07:00"
     }
   ],
-  "nextAction": "Await PR #6 review + merge. Then run /run-ticket for Phase 3 (OAuth core: 4 routes + 3 in-process stores + rate limit). For now, return to Henry with status: spec merged, tooling recovery in review, Phase 3 blocked on PR #6."
+  "nextAction": "STOPPED. Awaiting Henry's choice on ESC-DEV-4154-004 option (1/2/3). Branch feature/DEV-4154-phase-3a-oauth-foundation is on origin with slice 1 (5 files, 1 RED suite). PR #9 is draft. Cannot continue in this session without one of the three options."
 }
