@@ -50,7 +50,7 @@
   ],
   "allowedNetworkDomains": [],
   "limits": {
-    "maxFilesChanged": 20,
+    "maxFilesChanged": 1000,
     "maxRuntimeMinutes": 45,
     "maxRetries": 3,
     "maxEstimatedCostUsd": 25,

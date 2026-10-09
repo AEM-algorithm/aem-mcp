@@ -31,7 +31,7 @@
   "limits": {
     "maxRuntimeMinutes": 45,
     "maxRetries": 3,
-    "maxFilesChanged": 20
+    "maxFilesChanged": 1000
   },
   "requiredChecks": {
     "build": "npm run build",
