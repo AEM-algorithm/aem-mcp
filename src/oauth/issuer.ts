@@ -43,7 +43,7 @@ export type ExchangeCodeClaims = {
 };
 
 export type Issuer = {
-  signAccessToken: (input: { userId: number; ttlSeconds?: number; now?: () => number }) => {
+  signAccessToken: (input: { userId: number; jti?: string; ttlSeconds?: number; now?: () => number }) => {
     token: string;
     claims: McpAccessTokenClaims;
   };
@@ -98,13 +98,13 @@ export function createIssuer(opts: {
   }
 
   return {
-    signAccessToken({ userId, ttlSeconds = accessTokenTtl, now = Date.now }) {
+    signAccessToken({ userId, jti: jtiInput, ttlSeconds = accessTokenTtl, now = Date.now }) {
       const iat = Math.floor(now() / 1000);
       const exp = iat + ttlSeconds;
       const claims: McpAccessTokenClaims = {
         sub: String(userId),
         aud: AUD,
-        jti: randomUUID(),
+        jti: jtiInput ?? randomUUID(),
         iat,
         exp,
         scope: DEFAULT_SCOPE,

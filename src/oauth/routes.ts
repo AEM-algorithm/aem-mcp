@@ -9,7 +9,7 @@
 // All routes are gated by `OAUTH_ENABLED` (catastrophic rollback).
 // `/oauth/device` and `/oauth/token` are rate-limited per IP per spec D7.
 
-import { type Request, type Response, Router, type NextFunction } from 'express';
+import express, { type Request, type Response, Router, type NextFunction } from 'express';
 
 import type { DeviceCodesStore, IssueDeviceCodeResult } from './device-codes';
 import { issueDeviceCode } from './device-codes';
@@ -111,6 +111,9 @@ function parseBody(req: Request): Record<string, unknown> {
 
 export function createOAuthRouter(deps: OAuthRouterDeps): Router {
   const router = Router();
+  // /oauth/device, /oauth/token, and /oauth/revoke accept JSON bodies.
+  // (The /oauth/authorize HTML form is on a separate router with urlencoded.)
+  router.use(express.json({ limit: '4kb' }));
 
   // ---- POST /oauth/device ----
   router.post(
@@ -203,8 +206,10 @@ export function createOAuthRouter(deps: OAuthRouterDeps): Router {
         return;
       }
 
-      // Mint an MCP access token.
-      const { token } = deps.issuer.signAccessToken({ userId });
+      // Mint an MCP access token. The jti is reused from the device row so
+      // that revoking the pairing (via /api/agents/:jti) also invalidates
+      // the access token (revocation map is keyed on jti).
+      const { token } = deps.issuer.signAccessToken({ userId, jti: row.jti });
 
       // Record the durable pairing (used by Phase 6 GET/DELETE /api/agents).
       deps.pairings.add({

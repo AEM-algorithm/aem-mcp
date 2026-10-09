@@ -89,11 +89,13 @@ describe('e2e: Streamable HTTP MCP transport', () => {
   it('POST /mcp with valid JWT completes initialize handshake', async () => {
     const token = signTestToken({ id: 42, email: 'e2e@example.com' });
 
+    // Phase 5: Bearer is reserved for MCP access tokens (OAuth flow).
+    // Browser-session users (and the existing e2e test) use the cookie path.
     const res = await agent
       .post('/mcp')
       .set('Accept', 'application/json, text/event-stream')
       .set('Content-Type', 'application/json')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', `token=${token}`)
       .send({
         jsonrpc: '2.0',
         id: 1,
