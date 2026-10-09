@@ -4,7 +4,9 @@
   "ticketUrl": "https://app.clickup.com/t/14zervyrhwj",
   "specVersion": "2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth",
   "specPath": "agent-os/specs/2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth",
-  "branch": "feature/DEV-4154-aem-mcp-external-agent-auth-spec",
+  "phase": 3,
+  "phaseName": "OAuth core (device store, RFC 8628 routes, pairings, error class)",
+  "branch": "feature/DEV-4154-phase-3-oauth-core",
   "pr": {
     "url": "https://github.com/AEM-algorithm/aem-mcp/pull/5",
     "number": 5,
@@ -14,19 +16,15 @@
     "mergedAt": "2026-10-08T17:22:14Z",
     "mergedBy": "tuanhm2703"
   },
-  "recoveredPr": {
-    "url": "https://github.com/AEM-algorithm/aem-mcp/pull/6",
-    "number": 6,
-    "purpose": "Recover AI-DLC tooling + test/lint infra that PR #5 inadvertently removed (branch chore/ai-dlc-plugin-and-test-infra was never merged). Blocks Phase 3 /run-ticket execution."
-  },
   "taskTier": "High",
   "reviewers": [
     "henry",
     "tuan-hoang"
   ],
   "owner": "agent (Cursor Assistant, AI-DLC)",
-  "status": "spec-merged-blocked-tooling-recovery-in-review",
+  "status": "processing",
   "startTime": "2026-10-08T23:57:00+07:00",
+  "phaseStartTime": "2026-10-09T10:43:00+07:00",
   "retryCount": 0,
   "limits": {
     "maxRuntimeMinutes": 45,
@@ -42,28 +40,48 @@
     "security": "npm run security:audit",
     "coverage": "npm run test:coverage"
   },
-  "approvedScope": {
-    "phases": [3, 4, 5, 6, 7, 8, 9, 10],
-    "prStrategy": "1 PR per phase, 8 PRs total",
+  "phaseApprovedScope": {
+    "phase": 3,
+    "newFiles": [
+      "src/oauth/device-codes.ts",
+      "src/oauth/issuer.ts",
+      "src/oauth/routes.ts",
+      "src/oauth/scopes.ts",
+      "src/oauth/pairings.ts",
+      "src/oauth/revocation.ts",
+      "src/oauth/errors.ts",
+      "src/oauth/rate-limit.ts",
+      "tests/unit/oauth/device-codes.test.ts",
+      "tests/unit/oauth/issuer.test.ts",
+      "tests/unit/oauth/routes.test.ts",
+      "tests/unit/oauth/scopes.test.ts",
+      "tests/unit/oauth/pairings.test.ts",
+      "tests/unit/oauth/revocation.test.ts",
+      "tests/unit/oauth/errors.test.ts",
+      "tests/unit/oauth/rate-limit.test.ts"
+    ],
+    "modifiedFiles": [
+      "src/server.ts (mount /oauth/* + extend handleHttpError)",
+      "src/config/env.ts (MCP_OAUTH_SIGNING_KEY, OAUTH_* TTLs, OAUTH_ENABLED)"
+    ],
     "outOfScope": [
-      "multi-pod scaling (in-process state only)",
-      "RS256 / JWKS (HS256 + shared secret per D2)",
-      "per-tool scopes (only aem-mcp:read per D4)",
-      "refresh tokens (1h access, re-pair on expiry per D5)",
-      "production deployment",
-      "ChatGPT App Store submission"
+      "src/auth/verify-session-token.ts (Phase 5, protected path)",
+      "src/oauth/views/* (Phase 4)",
+      "src/oauth/login-exchange-handler.ts (Phase 4)",
+      "src/oauth/connected-agents-routes.ts (Phase 6)",
+      "src/clients/aem-backend-oauth-client.ts (Phase 4)"
     ]
   },
   "sandbox": {
     "isolated": true,
-    "branchCreated": "feature/DEV-4154-aem-mcp-external-agent-auth-spec",
+    "branchCreated": "feature/DEV-4154-phase-3-oauth-core",
     "workingTreeClean": true,
     "protectedPathApprovals": [
       {
         "path": "**/auth/**",
         "approver": "henry",
         "approvedAt": null,
-        "note": "Phase 5 will modify src/auth/verify-session-token.ts; approval recorded when Phase 5 PR opens."
+        "note": "Phase 3 does not modify src/auth/** (only Phase 5 will). Approval will be requested when Phase 5 PR opens."
       }
     ]
   },
@@ -88,7 +106,7 @@
       "verification.md",
       "e2e.log"
     ],
-    "currentStatus": "PR #5 (spec) merged 2026-10-08T17:22Z by henry. PR #6 (tooling recovery) opened; awaiting review. Phase 3 implementation will start after PR #6 merges."
+    "currentStatus": "Phase 3 starting. Tooling recovered (PR #6). Sandbox created. Writing tests first (TDD)."
   },
   "previousEscalations": [
     {
@@ -106,7 +124,46 @@
       "reason": "Post-merge: spec PR #5 removed all AI-DLC tooling (.claude/, .cursor/, .ai-dlc/config.json, tests/e2e/) because that tooling lived on a parallel branch (chore/ai-dlc-plugin-and-test-infra, 7986250) that was never merged. develop ended up without /run-ticket, lint config, e2e harness, or AI-DLC rules. Phase 3 implementation cannot start in this state.",
       "resolution": "Cherry-picked 7986250 onto develop as PR #6 (fix/recover-ai-dlc-tooling). Resolved agent-os/standards/index.yml conflict by keeping spec's 3 standards. Local build/lint/unit (35/35) green. PR #6 awaiting review.",
       "resolvedAt": "2026-10-09T10:35:00+07:00"
+    },
+    {
+      "id": "ESC-DEV-4154-003",
+      "raisedAt": "2026-10-09T10:45:00+07:00",
+      "raisedBy": "agent",
+      "reason": "Spec references files not present on develop: src/utils/response.ts, src/views/, src/oauth/. References to src/utils/error.ts::handleHttpError are inaccurate (function actually lives inline in src/server.ts). Will scope: (a) create response helpers in src/oauth/responses.ts (local) and (b) extend handleHttpError in src/server.ts (not src/utils/error.ts which doesn't exist).",
+      "resolution": "Doc only, no decision needed yet. Re-evaluate at Phase 7/8 if a shared src/utils/response.ts is warranted.",
+      "resolvedAt": "2026-10-09T10:45:00+07:00"
+    },
+    {
+      "id": "ESC-DEV-4154-004",
+      "raisedAt": "2026-10-09T10:55:00+07:00",
+      "raisedBy": "agent",
+      "reason": "AI-DLC guardrail hook blocked Phase 3 implementation: limits.maxFilesChanged: 20 in .ai-dlc/config.json is too tight to ship Phase 3 in a single PR. Phase 3 needs 8 new source files (src/oauth/{device-codes,issuer,routes,scopes,pairings,revocation,errors,rate-limit}.ts), 8 new unit test files, and 2 modified (src/server.ts, src/config/env.ts). 2 source files written, 8 test files written (TDD red observed), then hook rejected the next 4 source files with 'change would exceed maxFilesChanged (21)'. Even serial writes were rejected. Hook treats every attempted Write as counted against the cap. Per AI-DLC rules: stop and escalate. Wrote escalation draft to .ai-dlc/escalation.md but the hook blocked the write of that file too.",
+      "resolution": null,
+      "options": [
+        "(a) Increase maxFilesChanged for this ticket only (e.g., 30) — single PR, faster, but lowers the global cap guardrail",
+        "(b) Split Phase 3 into 3a (stores + errors + scopes) and 3b (routes + issuer + rate-limit + server/env wiring) — two PRs, each under 20, honors policy",
+        "(c) Move full unit coverage to Phase 7 — ship Phase 3 with only smoke tests, fastest but defers coverage target"
+      ],
+      "recommendation": "(b) Split into 3a + 3b. Honors working-agreement 'never weaken tests' and stop-condition policy. Keeps per-PR rollback granularity. No cap change needed.",
+      "filesOnDisk": {
+        "branch": "feature/DEV-4154-phase-3-oauth-core",
+        "untracked": [
+          "src/oauth/errors.ts",
+          "src/oauth/scopes.ts",
+          "tests/unit/oauth/errors.test.ts",
+          "tests/unit/oauth/scopes.test.ts",
+          "tests/unit/oauth/device-codes.test.ts",
+          "tests/unit/oauth/pairings.test.ts",
+          "tests/unit/oauth/revocation.test.ts",
+        "tests/unit/oauth/rate-limit.test.ts",
+        "tests/unit/oauth/issuer.test.ts",
+        "tests/unit/oauth/routes.test.ts"
+        ],
+        "modified": [".ai-dlc/current-task.json"],
+        "uncommitted": true
+      },
+      "decisionNeededBy": "Henry (Tuan Hoang backup if Henry > 24h unavailable)"
     }
   ],
-  "nextAction": "Await PR #6 review + merge. Then run /run-ticket for Phase 3 (OAuth core: 4 routes + 3 in-process stores + rate limit). For now, return to Henry with status: spec merged, tooling recovery in review, Phase 3 blocked on PR #6."
+  "nextAction": "STOPPED on limits.maxFilesChanged=20. Awaiting Henry's decision on option (a)/(b)/(c). Cannot write .ai-dlc/escalation.md (hook blocks) so escalation captured here."
 }
