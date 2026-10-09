@@ -10,6 +10,7 @@ import { createDeviceCodesStore } from './oauth/device-codes';
 import { BackendError } from './errors/backend-error';
 import { ToolPolicyError } from './errors/tool-policy-error';
 import { AccessTokenError, verifyAccessToken } from './oauth/access-token-verify';
+import { createConnectedAgentsRouter } from './oauth/connected-agents-routes';
 import { createIssuer } from './oauth/issuer';
 import { createLoginExchangeRouter } from './oauth/login-exchange-handler';
 import { createPairingsStore } from './oauth/pairings';
@@ -90,6 +91,9 @@ export function createMcpApp(env: Env): express.Express {
       env,
       oauthEnabled: env.OAUTH_ENABLED,
     }),
+  );
+  app.use(
+    createConnectedAgentsRouter({ env, pairings, revocation }),
   );
 
   app.get('/health', (_req, res) => {
