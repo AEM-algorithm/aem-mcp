@@ -19,6 +19,7 @@ import { createRevocationStore } from './oauth/revocation';
 import { createOAuthRouter } from './oauth/routes';
 import { createToolRegistry } from './tools/registry';
 import { registerReadTools } from './tools/register-tools';
+import { audit } from './utils/audit';
 import { logError } from './utils/logger';
 
 function sendError(res: Response, status: number, message: string): void {
@@ -116,8 +117,15 @@ export function createMcpApp(env: Env): express.Express {
         // check the jti against the revocation map, and resolve to a session
         // (numeric userId, email best-effort from pairings).
         const token = authorization!.slice('Bearer '.length).trim();
-        const claims = verifyAccessToken(token, env);
+        let claims;
+        try {
+          claims = verifyAccessToken(token, env);
+        } catch (err) {
+          audit.tokenRejected({ reason: (err as Error).message });
+          throw err;
+        }
         if (revocation.isRevoked(claims.jti)) {
+          audit.tokenRejected({ jti: claims.jti, reason: 'revoked' });
           throw new AuthError('Access token has been revoked');
         }
         const pairing = pairings.get(claims.jti);

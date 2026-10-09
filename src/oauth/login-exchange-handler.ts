@@ -24,6 +24,7 @@ import {
 } from './views/device-authorization-page';
 import { ExchangeCodeError, verifyExchangeCode } from './exchange-code-verify';
 import type { Env } from '../config/env';
+import { audit } from '../utils/audit';
 
 export type LoginExchangeDeps = {
   aemBackendOAuth: AemBackendOAuthClient;
@@ -171,6 +172,7 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
           totpCode,
         });
         exchangeCode = result.exchangeCode;
+        audit.exchangeReceived({ userCode: userCodeRaw, reason: 'ok' });
       } catch (error) {
         if (error instanceof AemBackendOAuthError) {
           if (error.code === 'twoFactorRequired') {
@@ -214,6 +216,12 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
       // 3) Bind verified userId to the device_code (status -> approved).
       try {
         deps.deviceCodes.approve(row.deviceCode, verified.userId, verified.jti);
+        audit.deviceApproved({
+          userCode: userCodeRaw,
+          userId: verified.userId,
+          jti: verified.jti,
+          clientId: row.clientId,
+        });
       } catch (error) {
         if (error instanceof OAuthError) {
           res

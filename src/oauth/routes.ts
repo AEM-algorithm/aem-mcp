@@ -20,6 +20,7 @@ import type { RateLimiter } from './rate-limit';
 import { ipFromRequest } from './rate-limit';
 import type { RevocationStore } from './revocation';
 import { DEFAULT_SCOPE } from './scopes';
+import { audit } from '../utils/audit';
 
 export type OAuthRouterDeps = {
   issuer: Issuer;
@@ -152,6 +153,14 @@ export function createOAuthRouter(deps: OAuthRouterDeps): Router {
         expires_in: deps.deviceCodeTtlSeconds,
         interval: deps.devicePollIntervalSeconds,
       };
+      audit.deviceIssued({
+        ip: ipFromRequest({
+          ip: req.ip,
+          socket: req.socket as { remoteAddress?: string } | undefined,
+        }),
+        clientId,
+        userCode: issued.userCode,
+      });
       res.status(200).json(response);
     },
   );
@@ -230,6 +239,7 @@ export function createOAuthRouter(deps: OAuthRouterDeps): Router {
         expires_in: 3600,
         scope: row.scope,
       };
+      audit.tokenIssued({ userId, jti: row.jti, clientId: row.clientId, userCode: row.userCode });
       res.status(200).json(response);
     },
   );
@@ -268,8 +278,11 @@ export function createOAuthRouter(deps: OAuthRouterDeps): Router {
       try {
         const claims = deps.issuer.verifyAccessToken(token);
         deps.revocation.revoke(claims.jti, 'mcp-access-token');
-      } catch {
+        audit.tokenRevoked({ jti: claims.jti, reason: 'oauth-revoke-endpoint' });
+      } catch (err) {
         // RFC 7009 §2.2: server should respond 200 even on unknown/invalid tokens.
+        // Still record the rejection for audit visibility.
+        audit.tokenRejected({ reason: 'invalid-token-on-revoke' });
       }
       res.status(200).json({ ok: true });
     },
