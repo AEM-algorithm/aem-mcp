@@ -37,6 +37,13 @@ const envSchema = z
       .string()
       .url()
       .default('http://localhost:3000/api/oauth/exchange'),
+
+    // Phase 5 follow-up — aem-backend session bridge. The Bearer path on
+    // /mcp calls this to exchange an MCP access_token for a session_token
+    // (aem-backend tool API only accepts session cookies). Optional so the
+    // server can boot when the companion backend PR is not yet deployed;
+    // when unset, Bearer tool calls fail with 503.
+    MCP_BACKEND_SESSION_URL: z.string().url().optional(),
   })
   .transform((data) => {
     const jwtSecret =

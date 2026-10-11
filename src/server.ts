@@ -10,6 +10,7 @@ import { createDeviceCodesStore } from './oauth/device-codes';
 import { BackendError } from './errors/backend-error';
 import { ToolPolicyError } from './errors/tool-policy-error';
 import { AccessTokenError, verifyAccessToken } from './oauth/access-token-verify';
+import { getSessionToken } from './oauth/session-bridge';
 import { createConnectedAgentsRouter } from './oauth/connected-agents-routes';
 import { createIssuer } from './oauth/issuer';
 import { createLoginExchangeRouter } from './oauth/login-exchange-handler';
@@ -140,7 +141,12 @@ export function createMcpApp(env: Env): express.Express {
           clientId: pairing?.clientId,
           authKind: 'mcp-access-token' as const,
         };
-        authToken = token;
+        // Bridge the MCP access token to a Journaler session token.
+        // aem-backend's tool API only accepts the session cookie path
+        // (Cookie: token=<session_token>), so we exchange the access
+        // token via aem-backend's /api/oauth/session endpoint and
+        // forward the bridged token. Cached by jti for 15m.
+        authToken = await getSessionToken(token, env);
       } else {
         // Legacy session-cookie path (unchanged).
         const token = extractSessionToken({
