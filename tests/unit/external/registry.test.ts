@@ -1,5 +1,5 @@
-import { loadExternalServersFromEnv } from '@src/external/registry';
-import type { Env } from '@src/config/env';
+import { loadExternalServersFromEnv } from '../../../src/external/registry';
+import type { Env } from '../../../src/config/env';
 
 const makeEnv = (overrides: Partial<Env> = {}): Env => ({
     PORT: 3000,

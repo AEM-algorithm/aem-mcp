@@ -1,5 +1,5 @@
-import { mountExternalTools } from '@src/external/mount';
-import type { ExternalServerClient, ExternalTool } from '@src/external/types';
+import { mountExternalTools } from '../../../src/external/mount';
+import type { ExternalServerClient, ExternalTool } from '../../../src/external/types';
 
 const makeMcpServer = () => ({
     tool: jest.fn(),
