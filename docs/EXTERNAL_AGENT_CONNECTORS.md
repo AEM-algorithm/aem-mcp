@@ -1,28 +1,34 @@
 # External Agent Connectors
 
-This guide shows how to connect a Model Context Protocol (MCP) client to
-the AEM Journaler MCP server (`aem-mcp`) using the **OAuth 2.0 Device
-Authorization Grant** ([RFC 8628](https://datatracker.ietf.org/doc/html/rfc8628)).
-It is the only supported authentication flow for external agents in v1.
+This guide describes how external MCP clients authenticate to the AEM
+Journaler MCP server (`aem-mcp`). The server implements OAuth device flow
+and authorization-code flow with PKCE. OpenAI clients such as ChatGPT and Codex use MCP OAuth discovery and
+authorization-code flow with PKCE. The implementation publishes the
+required protected-resource and authorization-server metadata and binds
+the authorization response and token to the resource URL.
 
-If your MCP client does **not** support RFC 8628 natively, see the
-[Workarounds](#workarounds-for-non-compliant-clients) section.
+## Authentication flow
 
-## Quick start
-
-1. The agent starts the flow by calling `POST /oauth/device`.
+1. A compatible client discovers the OAuth endpoints from the server
+   metadata. Clients that use device authorization start by calling
+   `POST /oauth/device`.
 2. The server returns a `device_code` and a short, human-readable
    `user_code` (e.g. `ABCD-EFGH`) plus a `verification_uri`.
 3. The user opens `verification_uri` in a browser, types the `user_code`,
    and signs in with their AEM account.
-4. The agent polls `POST /oauth/token` with the `device_code`. The
+4. For device flow, the agent polls `POST /oauth/token` with the `device_code`. The
    endpoint returns `authorization_pending` until the user approves, then
    a Bearer access token (`access_token`).
 5. The agent uses `Authorization: Bearer <access_token>` on every call
    to `/mcp`.
 
-Tokens expire after 1 hour. There are **no refresh tokens**; the agent
-must re-pair via `/oauth/device` when the token expires or is revoked.
+For device flow, tokens expire after 1 hour. There are no refresh
+tokens; the agent must re-pair when the token expires or is revoked.
+
+The server also supports authorization-code flow with PKCE for clients
+that use a browser redirect. The MCP access token represents the user's
+Journaler account. It is separate from the user's sign-in to ChatGPT,
+Codex, Claude, or another AI product.
 
 ## Connector configuration
 
@@ -41,73 +47,44 @@ your operator assigned (e.g. `https://mcp.aem-algorithm.com`).
 
 ### Claude Code
 
-Add an MCP server entry to `~/.claude.json` (or the project's
-`.mcp.json`):
+Add the remote HTTP server through Claude Code's MCP command:
 
-```json
-{
-  "mcpServers": {
-    "aem-journaler": {
-      "type": "http",
-      "url": "https://mcp.aem-algorithm.com/mcp",
-      "oauth": {
-        "grantType": "device_code",
-        "deviceEndpoint": "https://mcp.aem-algorithm.com/oauth/device",
-        "tokenEndpoint": "https://mcp.aem-algorithm.com/oauth/token",
-        "clientId": "claude-code"
-      }
-    }
-  }
-}
+```bash
+claude mcp add --transport http aem-journaler https://mcp.aem-algorithm.com/mcp
 ```
 
-When Claude Code starts, it will:
-
-1. Call `/oauth/device` and present the `user_code` in the terminal.
-2. Print the `verification_uri` for the user to open.
-3. Poll `/oauth/token` until approved, then use the Bearer token on
-   `/mcp`.
-
-If your Claude Code build predates native RFC 8628 support, fall back to
-the [Workarounds](#workarounds-for-non-compliant-clients) section.
+Then run `/mcp` in Claude Code and follow its browser OAuth prompt.
+Claude Code manages the remote-server OAuth credentials. See the
+[Anthropic MCP guide](https://docs.anthropic.com/en/docs/claude-code/mcp).
 
 ---
 
-### ChatGPT (Custom MCP connector)
+### ChatGPT
 
-ChatGPT's custom MCP connector (Settings → Connectors → Custom) supports
-RFC 8628 directly.
-
-1. Open **Settings → Connectors → Create**.
-2. Set **Connector name** to `AEM Journaler`.
-3. Set **MCP server URL** to `https://mcp.aem-algorithm.com/mcp`.
-4. Set **Authentication** to `OAuth 2.0`.
-5. Set **Device authorization endpoint** to
-   `https://mcp.aem-algorithm.com/oauth/device`.
-6. Set **Token endpoint** to
-   `https://mcp.aem-algorithm.com/oauth/token`.
-7. Set **Client ID** to `claude-code` (the v1 default; will become
-   per-product in v2).
-
-ChatGPT will display the user_code and verification_uri during sign-in.
+In ChatGPT, create a custom MCP connector and enter the public MCP URL:
+`https://mcp.aem-algorithm.com/mcp`. Use the product's OAuth sign-in
+when prompted; do not enter a device endpoint or a hard-coded client ID.
+ChatGPT uses authorization-code with PKCE and OAuth discovery. If ChatGPT
+reports **"auth unsupported"**, confirm that the deployed server includes
+the compatibility updates below and that `PUBLIC_URL` matches its public
+HTTPS origin.
 
 ---
 
-### Codex (CLI)
+### Codex
 
-Add to `~/.codex/config.toml`:
+Add the remote MCP server in Codex's MCP settings (or the MCP server
+configuration supported by your installed Codex client), using:
 
-```toml
-[mcp_servers.aem-journaler]
-url = "https://mcp.aem-algorithm.com/mcp"
-oauth_grant_type = "device_code"
-oauth_device_endpoint = "https://mcp.aem-algorithm.com/oauth/device"
-oauth_token_endpoint = "https://mcp.aem-algorithm.com/oauth/token"
-oauth_client_id = "codex"
+```text
+https://mcp.aem-algorithm.com/mcp
 ```
 
-Codex will print the `user_code` in the terminal on first use and poll
-the token endpoint until you approve in the browser.
+Complete the OAuth browser flow when prompted. Current Codex clients use
+OAuth discovery and authorization-code with PKCE; the old device-flow
+TOML keys in this guide are not a supported current setup. If authentication
+is rejected as unsupported, confirm the server is updated and `PUBLIC_URL`
+points to the public HTTPS origin.
 
 ---
 
@@ -165,43 +142,39 @@ calls to `/mcp` with that token return 401).
 
 ---
 
-## Workarounds for non-compliant clients
+## OpenAI compatibility status
 
-If your MCP client does not support RFC 8628 device flow natively:
+AEM-MCP publishes:
 
-1. Manually call `POST /oauth/device` (e.g. with `curl`).
-2. Open the returned `verification_uri` and complete the browser sign-in.
-3. Poll `POST /oauth/token` with the `device_code` until you get an
-   `access_token`.
-4. Set `Authorization: Bearer <access_token>` on every call to `/mcp`.
-5. When the token expires (or is revoked), repeat from step 1.
+- `/.well-known/oauth-protected-resource`, with the canonical resource URL
+  and authorization-server issuer.
+- `/.well-known/oauth-authorization-server`, advertising authorization
+  code, public-client token exchange, and PKCE `S256`.
+- `iss` on successful and error authorization redirects.
 
-For example:
+The authorization request's `resource` is carried into the one-time
+authorization code, checked again at the token endpoint, and included as
+the `resource` claim in the issued access token. The legacy `aud: "aem-mcp"`
+claim remains in place for the Journaler backend session bridge.
 
-```bash
-# 1. Issue a device code
-DC=$(curl -s -X POST https://mcp.aem-algorithm.com/oauth/device \
-  -H "content-type: application/json" \
-  -d '{"client_id":"my-script"}')
-echo "$DC"
-# {"device_code":"...","user_code":"ABCD-EFGH","verification_uri":"https://app.aem-algorithm.com/agent-link",...}
+For a deployed instance, set `PUBLIC_URL` to its exact public HTTPS origin
+(without a trailing slash), then restart/redeploy the service. Confirm that
+both well-known URLs return JSON before retrying the ChatGPT connection.
+The ChatGPT callback is restricted to its documented callback paths; other
+clients must use loopback redirect URIs.
 
-# 2. Open the verification_uri in your browser and sign in.
-# 3. Poll for the token (2s interval per spec).
-DEVICE_CODE=$(echo "$DC" | jq -r .device_code)
-until TOKEN=$(curl -s -X POST https://mcp.aem-algorithm.com/oauth/token \
-  -H "content-type: application/json" \
-  -d "{\"grant_type\":\"urn:ietf:params:oauth:grant-type:device_code\",\"device_code\":\"$DEVICE_CODE\"}" \
-  | jq -r .access_token); [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ]; do
-  sleep 2
-done
+## Manual device-flow fallback
 
-# 4. Use the token.
-curl -H "Authorization: Bearer $TOKEN" \
-  https://mcp.aem-algorithm.com/mcp
-```
+For a client that supports a manually supplied Bearer token but cannot
+perform OAuth discovery, an operator can complete RFC 8628 device flow:
 
----
+1. Call `POST /oauth/device`.
+2. Open the returned `verification_uri` and approve the `user_code`.
+3. Poll `POST /oauth/token` with the `device_code` until the server returns
+   an `access_token`.
+4. Configure the MCP client to send `Authorization: Bearer <access_token>`
+   to `/mcp`.
+5. Re-pair when the token expires or is revoked.
 
 ## Troubleshooting
 
