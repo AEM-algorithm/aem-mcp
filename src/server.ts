@@ -21,6 +21,7 @@ import { createRateLimiter } from './oauth/rate-limit';
 import { createRevocationStore } from './oauth/revocation';
 import { createOAuthRouter } from './oauth/routes';
 import { DEFAULT_SCOPE } from './oauth/scopes';
+import { getOAuthResourceBaseUrl } from './oauth/resource';
 import { createToolRegistry } from './tools/registry';
 import { registerReadTools } from './tools/register-tools';
 import { audit } from './utils/audit';
@@ -65,7 +66,7 @@ export function createMcpApp(env: Env): express.Express {
   // OAuth 2.0 Authorization Server Metadata (RFC 8414) used by remote MCP
   // clients to discover the authorization and token endpoints.
   app.get('/.well-known/oauth-authorization-server', (_req, res) => {
-    const baseUrl = env.PUBLIC_URL ?? `http://localhost:${env.PORT}`;
+    const baseUrl = getOAuthResourceBaseUrl(env.PUBLIC_URL, env.PORT);
     res.status(200).json({
       issuer: baseUrl,
       authorization_response_iss_parameter_supported: true,
@@ -85,7 +86,7 @@ export function createMcpApp(env: Env): express.Express {
     });
   });
   app.get('/.well-known/oauth-protected-resource', (_req, res) => {
-    const baseUrl = env.PUBLIC_URL ?? `http://localhost:${env.PORT}`;
+    const baseUrl = getOAuthResourceBaseUrl(env.PUBLIC_URL, env.PORT);
     res.status(200).json({
       resource: baseUrl,
       authorization_servers: [baseUrl],
@@ -249,7 +250,7 @@ export function createMcpApp(env: Env): express.Express {
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
       if (error instanceof AuthError || error instanceof AccessTokenError) {
-        const baseUrl = env.PUBLIC_URL ?? `http://localhost:${env.PORT}`;
+        const baseUrl = getOAuthResourceBaseUrl(env.PUBLIC_URL, env.PORT);
         res.setHeader(
           'WWW-Authenticate',
           `Bearer resource_metadata="${baseUrl}/.well-known/oauth-protected-resource", scope="${DEFAULT_SCOPE}"`,

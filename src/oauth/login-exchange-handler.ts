@@ -19,6 +19,7 @@ import {
 } from '../clients/aem-backend-oauth-client';
 import { OAuthError } from './errors';
 import { DEFAULT_SCOPE } from './scopes';
+import { getOAuthResourceBaseUrl, isSupportedOAuthResource } from './resource';
 import type { DeviceCodesStore } from './device-codes';
 import {
   type DeviceAuthorizationPageInput,
@@ -165,13 +166,13 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
         : '';
       const scope = typeof req.query.scope === 'string' ? req.query.scope : DEFAULT_SCOPE;
       const resource = typeof req.query.resource === 'string' ? req.query.resource : undefined;
-      const expectedResource = deps.env.PUBLIC_URL ?? `http://localhost:${deps.env.PORT}`;
+      const expectedResource = getOAuthResourceBaseUrl(deps.env.PUBLIC_URL, deps.env.PORT);
 
       if (!clientId) {
         resRedirectWithError(res, redirectUri, state, 'invalid_request', 'client_id is required');
         return;
       }
-      if (resource !== undefined && resource !== expectedResource) {
+      if (resource !== undefined && !isSupportedOAuthResource(resource, expectedResource)) {
         resRedirectWithError(res, redirectUri, state, 'invalid_target', 'resource does not identify this MCP server');
         return;
       }
@@ -269,7 +270,7 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
     }
     const params = new URLSearchParams({ error, error_description: description });
     if (typeof state === 'string' && state.length > 0) params.set('state', state);
-    params.set('iss', deps.env.PUBLIC_URL ?? `http://localhost:${deps.env.PORT}`);
+    params.set('iss', getOAuthResourceBaseUrl(deps.env.PUBLIC_URL, deps.env.PORT));
     res.redirect(302, `${redirectUri}?${params.toString()}`);
   }
 
@@ -383,7 +384,7 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
         // 4) 302 redirect to redirect_uri?code=...&state=...
         const params = new URLSearchParams({
           code,
-          iss: deps.env.PUBLIC_URL ?? `http://localhost:${deps.env.PORT}`,
+          iss: getOAuthResourceBaseUrl(deps.env.PUBLIC_URL, deps.env.PORT),
         });
         if (pending.state.length > 0) params.set('state', pending.state);
         res.redirect(302, `${pending.redirectUri}?${params.toString()}`);

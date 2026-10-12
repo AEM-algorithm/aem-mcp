@@ -14,6 +14,7 @@
 import jwt from 'jsonwebtoken';
 
 import type { Env } from '../config/env';
+import { getOAuthResourceBaseUrl, isSupportedOAuthResource } from './resource';
 
 export class AccessTokenError extends Error {
   public readonly code: 'invalid_token' | 'wrong_audience' | 'expired';
@@ -58,11 +59,13 @@ export function verifyAccessToken(token: string, env: Env): VerifiedAccessToken 
   const sub = decoded.sub;
   const aud = decoded.aud;
   const jti = decoded.jti;
-  const expectedResource = env.PUBLIC_URL ?? `http://localhost:${env.PORT}`;
+  const expectedResource = getOAuthResourceBaseUrl(env.PUBLIC_URL, env.PORT);
   if (
     typeof sub !== 'string' ||
     aud !== 'aem-mcp' ||
-    (decoded.resource !== undefined && decoded.resource !== expectedResource) ||
+    (decoded.resource !== undefined &&
+      (typeof decoded.resource !== 'string' ||
+        !isSupportedOAuthResource(decoded.resource, expectedResource))) ||
     typeof jti !== 'string'
   ) {
     throw new AccessTokenError(
