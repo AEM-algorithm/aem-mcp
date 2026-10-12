@@ -44,6 +44,14 @@ const envSchema = z
     // server can boot when the companion backend PR is not yet deployed;
     // when unset, Bearer tool calls fail with 503.
     MCP_BACKEND_SESSION_URL: z.string().url().optional(),
+
+    // Public base URL used to publish absolute OAuth authorization-server
+    // metadata endpoints. Required in staging/production deployments where
+    // localhost is not reachable by MCP clients.
+    PUBLIC_URL: z.string().url().optional(),
+
+    // Optional list of external Streamable HTTP MCP servers to proxy.
+    MCP_EXTERNAL_SERVERS: z.string().optional(),
   })
   .transform((data) => {
     const jwtSecret =

@@ -5,6 +5,7 @@ import request from 'supertest';
 import { loadEnv } from '../../../src/config/env';
 import type { Env } from '../../../src/config/env';
 import { createDeviceCodesStore, generateUserCode } from '../../../src/oauth/device-codes';
+import { createAuthCodesStore } from '../../../src/oauth/auth-codes';
 import { createLoginExchangeRouter } from '../../../src/oauth/login-exchange-handler';
 import {
   AemBackendOAuthError,
@@ -32,6 +33,7 @@ function buildApp(
   const router = createLoginExchangeRouter({
     aemBackendOAuth: opts.stub as unknown as never,
     deviceCodes,
+    authCodes: createAuthCodesStore(),
     env: ENV,
     oauthEnabled: opts.oauthEnabled ?? true,
   });
@@ -61,6 +63,25 @@ function insertPendingCode(
 }
 
 describe('login exchange handler — GET /oauth/authorize', () => {
+  it('serves Cursor authorization requests on the root /authorize path', async () => {
+    const deviceCodes = createDeviceCodesStore({ verificationUri: 'http://localhost/authorize' });
+    const app = buildApp(deviceCodes, { stub: { exchange: jest.fn() } });
+    const query = new URLSearchParams({
+      response_type: 'code',
+      client_id: 'cursor-test',
+      redirect_uri: 'http://localhost:43123/callback',
+      state: 'test-state',
+      code_challenge: 'test-challenge',
+      code_challenge_method: 'S256',
+    });
+
+    const res = await request(app).get(`/authorize?${query.toString()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/html/);
+    expect(res.text).toContain('name="authRequestId"');
+  });
+
   it('renders the form for a valid pending user_code', async () => {
     const deviceCodes = createDeviceCodesStore({
       verificationUri: 'http://localhost/oauth/authorize',

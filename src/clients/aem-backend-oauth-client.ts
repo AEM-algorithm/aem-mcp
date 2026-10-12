@@ -48,8 +48,10 @@ export type ExchangeRequest = {
 };
 
 export type ExchangeResponse = {
-  exchangeCode: string; // HS256 JWT, aud='aem-mcp', sub=<userId>, jti, 60s TTL
-  userId: number;
+  // HS256 JWT, aud='aem-mcp', sub=<userId>, jti, 60s TTL. The userId is
+  // recovered from the JWT 'sub' claim by verifyExchangeCode, not from
+  // the response body.
+  exchangeCode: string;
 };
 
 export type AemBackendOAuthClient = {
@@ -70,21 +72,29 @@ export function createAemBackendOAuthClient(env: Env): AemBackendOAuthClient {
           headers: { 'content-type': 'application/json' },
         });
 
+        // aem-backend wraps responses in an envelope:
+        //   success 200: { status: 'Success', data: { exchangeCode, expiresIn }, message }
+        //   error 4xx:   { status: 'error',   message, errorCode }
+        const envelope = response.data as {
+          status?: unknown;
+          data?: { exchangeCode?: unknown; expiresIn?: unknown };
+          message?: unknown;
+          errorCode?: unknown;
+        };
+
         if (response.status === 200) {
-          const data = response.data as { exchangeCode?: unknown; userId?: unknown };
-          if (
-            typeof data?.exchangeCode === 'string' &&
-            typeof data?.userId === 'number'
-          ) {
-            return { exchangeCode: data.exchangeCode, userId: data.userId };
+          // userId is recovered from the JWT 'sub' claim by
+          // verifyExchangeCode later; we only need exchangeCode here.
+          const inner = envelope?.data;
+          if (typeof inner?.exchangeCode === 'string') {
+            return { exchangeCode: inner.exchangeCode };
           }
           throw new BackendError('aem-backend returned malformed exchange response', 502);
         }
 
         if (response.status === 401) {
-          const body = response.data as { error?: unknown };
-          const err = body?.error;
-          if (err === AemBackendOAuthErrorCode.TwoFactorRequired) {
+          const errCode = envelope?.errorCode;
+          if (errCode === AemBackendOAuthErrorCode.TwoFactorRequired) {
             throw new AemBackendOAuthError(
               AemBackendOAuthErrorCode.TwoFactorRequired,
               'Two-factor authentication required',
@@ -95,6 +105,17 @@ export function createAemBackendOAuthClient(env: Env): AemBackendOAuthClient {
             AemBackendOAuthErrorCode.InvalidCredentials,
             'Invalid email or password',
             401,
+          );
+        }
+
+        if (response.status === 400) {
+          // DTO validation failure (e.g. malformed email). Treat as
+          // invalid creds so we don't reveal validation rules and the
+          // user gets the same generic message as a wrong password.
+          throw new AemBackendOAuthError(
+            AemBackendOAuthErrorCode.InvalidCredentials,
+            'Invalid email or password',
+            400,
           );
         }
 

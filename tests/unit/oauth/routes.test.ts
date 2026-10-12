@@ -2,6 +2,7 @@ import request from 'supertest';
 import express from 'express';
 
 import { createDeviceCodesStore } from '../../../src/oauth/device-codes';
+import { createAuthCodesStore } from '../../../src/oauth/auth-codes';
 import { createIssuer } from '../../../src/oauth/issuer';
 import { createPairingsStore } from '../../../src/oauth/pairings';
 import { createRateLimiter } from '../../../src/oauth/rate-limit';
@@ -11,6 +12,7 @@ import { createOAuthRouter } from '../../../src/oauth/routes';
 const KEY = 'a'.repeat(32);
 const DEFAULT_DEPS = () => ({
   issuer: createIssuer({ signingKey: KEY }),
+  authCodes: createAuthCodesStore(),
   deviceCodes: createDeviceCodesStore({ verificationUri: 'https://aem-mcp/oauth/authorize' }),
   pairings: createPairingsStore(),
   revocation: createRevocationStore(),
@@ -27,6 +29,28 @@ function appWith(overrides: Partial<ReturnType<typeof DEFAULT_DEPS>> = {}): expr
   app.use(createOAuthRouter({ ...DEFAULT_DEPS(), ...overrides }));
   return app;
 }
+
+describe('POST /register', () => {
+  it('returns a dynamic client registration response for Cursor', async () => {
+    const res = await request(appWith())
+      .post('/register')
+      .send({
+        client_name: 'Cursor',
+        redirect_uris: ['http://localhost:43123/callback'],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+    expect(res.body).toMatchObject({
+      client_name: 'Cursor',
+      redirect_uris: ['http://localhost:43123/callback'],
+      token_endpoint_auth_method: 'none',
+      grant_types: expect.arrayContaining(['authorization_code']),
+      response_types: ['code'],
+    });
+    expect(res.body.client_id).toMatch(/^cursor-/);
+  });
+});
 
 describe('POST /oauth/device', () => {
   it('returns RFC 8628 §3.1 response with correct shape', async () => {
@@ -81,6 +105,40 @@ describe('POST /oauth/device', () => {
 });
 
 describe('POST /oauth/token', () => {
+  it('exchanges a Cursor authorization code at the root /token path', async () => {
+    const authCodes = createAuthCodesStore();
+    const codeVerifier = 'a'.repeat(43);
+    authCodes.insert({
+      code: 'cursor-auth-code',
+      userId: 42,
+      jti: 'cursor-jti',
+      clientId: 'cursor-client',
+      redirectUri: 'http://localhost:43123/callback',
+      scope: 'aem-mcp:read',
+      codeChallenge: codeVerifier,
+      codeChallengeMethod: 'plain',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      consumed: false,
+    });
+    const app = appWith({ authCodes });
+
+    const res = await request(app)
+      .post('/token')
+      .type('form')
+      .send({
+        grant_type: 'authorization_code',
+        code: 'cursor-auth-code',
+        client_id: 'cursor-client',
+        redirect_uri: 'http://localhost:43123/callback',
+        code_verifier: codeVerifier,
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+    expect(res.body.token_type).toBe('Bearer');
+    expect(typeof res.body.access_token).toBe('string');
+  });
+
   it('rejects a wrong grant_type with unsupported_grant_type', async () => {
     const app = appWith();
     const res = await request(app)

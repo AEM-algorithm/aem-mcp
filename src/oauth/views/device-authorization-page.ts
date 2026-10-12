@@ -12,6 +12,11 @@ export type DeviceAuthorizationPageInput = {
   error?: string;
   twoFactorRequired?: boolean;
   emailPrefill?: string;
+  // When set, this is an authorization_code + PKCE request
+  // (Cursor). The form will hide the device-code display and post
+  // authRequestId back to /oauth/authorize, which will mint a one-shot
+  // code and 302-redirect to the client's redirect_uri.
+  authRequestId?: string;
 };
 
 function escape(s: string): string {
@@ -24,14 +29,31 @@ function escape(s: string): string {
 }
 
 export function renderDeviceAuthorizationPage(input: DeviceAuthorizationPageInput): string {
-  const { userCode, error, twoFactorRequired, emailPrefill } = input;
+  const { userCode, error, twoFactorRequired, emailPrefill, authRequestId } = input;
+  const isAuthCodeFlow = typeof authRequestId === 'string' && authRequestId.length > 0;
   const codeAttr = escape(userCode);
+  const authRequestIdAttr = isAuthCodeFlow ? escape(authRequestId) : '';
   const emailAttr = emailPrefill ? escape(emailPrefill) : '';
   const errorBlock = error
     ? `<div class="error" role="alert" data-testid="form-error">${escape(error)}</div>`
     : '';
   const totpBlock = twoFactorRequired
     ? `<label for="totp">Authenticator code<input id="totp" name="totp" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" required /></label>`
+    : '';
+  // Device flow shows the XXXX-XXXX code; auth_code flow does not (the
+  // user has nothing to type — Cursor already knows the request via
+  // the authRequestId hidden field).
+  const codeBlock = isAuthCodeFlow
+    ? ''
+    : `<div class="code" aria-label="device code">${codeAttr}</div>`;
+  const lead = isAuthCodeFlow
+    ? 'Sign in to authorize the agent that opened this page.'
+    : 'Confirm the code shown by your agent, then sign in with your account.';
+  const heading = isAuthCodeFlow
+    ? 'Authorize your agent'
+    : 'Sign in to connect your agent';
+  const hiddenAuthRequestIdField = isAuthCodeFlow
+    ? `<input type="hidden" name="authRequestId" value="${authRequestIdAttr}" />`
     : '';
 
   return `<!doctype html>
@@ -40,7 +62,7 @@ export function renderDeviceAuthorizationPage(input: DeviceAuthorizationPageInpu
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <meta name="referrer" content="no-referrer" />
-<title>Sign in to connect your agent</title>
+<title>${escape(heading)}</title>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; background: #f7f7f8; margin: 0; padding: 2rem 1rem; color: #111; }
   main { max-width: 28rem; margin: 0 auto; background: #fff; border: 1px solid #e3e3e6; border-radius: 8px; padding: 1.5rem 1.75rem; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
@@ -56,12 +78,12 @@ export function renderDeviceAuthorizationPage(input: DeviceAuthorizationPageInpu
 </head>
 <body>
 <main>
-  <h1>Sign in to connect your agent</h1>
-  <p class="lead">Confirm the code shown by your agent, then sign in with your account.</p>
-  <div class="code" aria-label="device code">${codeAttr}</div>
+  <h1>${escape(heading)}</h1>
+  <p class="lead">${escape(lead)}</p>
+  ${codeBlock}
   ${errorBlock}
   <form method="POST" action="/oauth/authorize" autocomplete="off">
-    <input type="hidden" name="user_code" value="${codeAttr}" />
+    ${hiddenAuthRequestIdField}
     <label for="email">Email<input id="email" name="email" type="email" autocomplete="username" value="${emailAttr}" required /></label>
     <label for="password">Password<input id="password" name="password" type="password" autocomplete="current-password" required /></label>
     ${totpBlock}

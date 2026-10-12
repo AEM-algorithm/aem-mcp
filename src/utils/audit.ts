@@ -18,13 +18,16 @@ export type AuditEvent =
   // 5. A token was revoked (either via /oauth/revoke or DELETE /api/agents/:jti).
   | 'oauth.token.revoked'
   // 6. A token was rejected (revoked, expired, bad audience, etc.).
-  | 'oauth.token.rejected';
+  | 'oauth.token.rejected'
+  // 7. A new public client was registered via /oauth/register.
+  | 'oauth.client.registered';
 
 type BaseFields = {
   ip?: string;
   userId?: number;
   jti?: string;
   clientId?: string;
+  clientName?: string;
   userCode?: string;
   reason?: string;
 };
@@ -66,5 +69,8 @@ export const audit = {
   },
   tokenRejected(fields: BaseFields): void {
     emit('oauth.token.rejected', fields);
+  },
+  clientRegistered(fields: BaseFields): void {
+    emit('oauth.client.registered', fields);
   },
 };

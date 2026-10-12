@@ -12,7 +12,7 @@ type ToolContext = {
 export function registerReadTools(
   server: McpServer,
   tools: ToolDefinition[],
-  getContext: () => ToolContext,
+  getContext: () => ToolContext | Promise<ToolContext>,
 ): void {
   for (const tool of tools) {
     const config = {
@@ -25,7 +25,7 @@ export function registerReadTools(
       config as { description: string },
       (async (args: Record<string, unknown>) => {
         try {
-          const context = getContext();
+          const context = await getContext();
           const result = await tool.handler(context, args);
           return {
             content: [{ type: 'text' as const, text: JSON.stringify(result) }],
