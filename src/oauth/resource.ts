@@ -5,5 +5,26 @@ export function getOAuthResourceBaseUrl(publicUrl: string | undefined, port: num
 
 /** Accept the advertised server identifier and the configured Streamable HTTP endpoint URI. */
 export function isSupportedOAuthResource(resource: string, baseUrl: string): boolean {
-  return resource === baseUrl || resource === `${baseUrl}/mcp`;
+  try {
+    const requested = new URL(resource);
+    const base = new URL(baseUrl);
+    if (
+      requested.origin !== base.origin ||
+      requested.protocol !== base.protocol ||
+      requested.username ||
+      requested.password ||
+      requested.search ||
+      requested.hash
+    ) {
+      return false;
+    }
+
+    const normalizePath = (path: string): string => path.replace(/\/+$/, '') || '/';
+    const basePath = normalizePath(base.pathname);
+    const mcpPath = normalizePath(`${basePath === '/' ? '' : basePath}/mcp`);
+    const requestedPath = normalizePath(requested.pathname);
+    return requestedPath === basePath || requestedPath === mcpPath;
+  } catch {
+    return false;
+  }
 }
