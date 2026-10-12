@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "sequence",
+  "quality": "showcase",
+  "specification": {
+    "path": "/Users/henry/Documents/Github/aem/aem-mcp/.archify/sequence-mcp-token-bridge-20261011-234500/current-bug.candidate.json",
+    "sha256": "352b54bbf0161f293eea8b93d9ac7ec9963945a7bba42e7e6df401c26ae53293",
+    "bytes": 4612
+  },
+  "artifact": {
+    "path": "/Users/henry/Documents/Github/aem/aem-mcp/.archify/sequence-mcp-token-bridge-20261011-234500/current-bug.html",
+    "sha256": "ade51c6d64c15f3e4259909c0d44a92b03eee74fd4e82a3a1c8606d543f489ab",
+    "bytes": 761919
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/Users/henry/Documents/Github/aem/aem-mcp/.archify/sequence-mcp-token-bridge-20261011-234500/current-bug.finalize.json",
+    "summaryReceipt": "/Users/henry/Documents/Github/aem/aem-mcp/.archify/sequence-mcp-token-bridge-20261011-234500/current-bug.finalize-summary.json",
+    "browserCheckReceipt": "/Users/henry/Documents/Github/aem/aem-mcp/.archify/sequence-mcp-token-bridge-20261011-234500/current-bug.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.0.1",
+    "availableVersion": "3.0.1",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-11T16:45:01.566Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 2031
+}
