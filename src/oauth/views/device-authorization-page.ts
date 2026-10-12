@@ -48,13 +48,20 @@ export function renderDeviceAuthorizationPage(input: DeviceAuthorizationPageInpu
     : `<div class="code" aria-label="device code">${codeAttr}</div>`;
   const lead = isAuthCodeFlow
     ? 'Sign in to authorize the agent that opened this page.'
-    : 'Confirm the code shown by your agent, then sign in with your account.';
+    : userCode
+      ? 'Confirm the code shown by your agent, then sign in with your account.'
+      : 'Enter the code shown by your agent, then sign in with your account.';
   const heading = isAuthCodeFlow
     ? 'Authorize your agent'
     : 'Sign in to connect your agent';
   const hiddenAuthRequestIdField = isAuthCodeFlow
     ? `<input type="hidden" name="authRequestId" value="${authRequestIdAttr}" />`
     : '';
+  const deviceCodeField = isAuthCodeFlow
+    ? ''
+    : userCode
+      ? `<input type="hidden" name="user_code" value="${codeAttr}" />`
+      : `<label for="user_code">Device code<input id="user_code" name="user_code" type="text" inputmode="text" autocomplete="off" placeholder="ABCD-EFGH" required /></label>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -84,6 +91,7 @@ export function renderDeviceAuthorizationPage(input: DeviceAuthorizationPageInpu
   ${errorBlock}
   <form method="POST" action="/oauth/authorize" autocomplete="off">
     ${hiddenAuthRequestIdField}
+    ${deviceCodeField}
     <label for="email">Email<input id="email" name="email" type="email" autocomplete="username" value="${emailAttr}" required /></label>
     <label for="password">Password<input id="password" name="password" type="password" autocomplete="current-password" required /></label>
     ${totpBlock}

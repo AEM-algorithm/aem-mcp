@@ -216,22 +216,12 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
       req.query.user_code ?? req.query['user-code'] ?? req.query.code;
     const userCode = typeof userCodeRaw === 'string' ? userCodeRaw.trim().toUpperCase() : '';
     if (!isValidUserCode(userCode)) {
-      res
-        .status(400)
-        .type('html')
-        .send(
-          '<!doctype html><html><body><p>Invalid or missing device code. Restart your agent and try again.</p></body></html>',
-        );
+      renderForm(res, '', { error: 'Enter the valid device code shown by your agent.' });
       return;
     }
     const row = deps.deviceCodes.getByUserCode(userCode);
     if (!row) {
-      res
-        .status(404)
-        .type('html')
-        .send(
-          '<!doctype html><html><body><p>This code has expired or was never issued. Restart your agent and try again.</p></body></html>',
-        );
+      renderForm(res, '', { error: 'This device code has expired or is not valid. Enter the current code from your agent.' });
       return;
     }
     if (row.status === 'approved') {
@@ -397,13 +387,8 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
         typeof userCodeRawValue === 'string' ? userCodeRawValue.trim().toUpperCase() : '';
 
       if (!isValidUserCode(userCodeRaw)) {
-        res
-          .status(400)
-          .type('html')
-          .send(
-            '<!doctype html><html><body><p>Invalid device code. Restart your agent and try again.</p></body></html>',
-          );
-          return;
+        renderForm(res, '', { error: 'Enter the valid device code shown by your agent.' });
+        return;
       }
       if (!isValidEmail(email) || password.length === 0) {
         renderForm(res, userCodeRaw, { error: 'Enter a valid email and password.' });
@@ -412,12 +397,7 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
 
       const row = deps.deviceCodes.getByUserCode(userCodeRaw);
       if (!row) {
-        res
-          .status(404)
-          .type('html')
-          .send(
-            '<!doctype html><html><body><p>This code has expired. Restart your agent and try again.</p></body></html>',
-          );
+        renderForm(res, '', { error: 'This device code has expired or is not valid. Enter the current code from your agent.' });
         return;
       }
       if (row.status !== 'pending') {
