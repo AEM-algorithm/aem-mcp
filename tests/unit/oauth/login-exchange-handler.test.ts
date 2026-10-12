@@ -93,26 +93,36 @@ describe('login exchange handler — GET /oauth/authorize', () => {
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/text\/html/);
     expect(res.text).toContain(userCode);
+    expect(res.text).toContain(`name="user_code" value="${userCode}"`);
     expect(res.text).toMatch(/name="email"/);
     expect(res.text).toMatch(/name="password"/);
   });
 
-  it('rejects missing user_code with 400', async () => {
+  it('renders a manual-entry form when user_code is missing', async () => {
     const app = buildApp(createDeviceCodesStore({ verificationUri: 'x' }), { stub: { exchange: jest.fn() } });
     const res = await request(app).get('/oauth/authorize');
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/html/);
+    expect(res.text).toContain('Enter the valid device code shown by your agent.');
+    expect(res.text).toContain('name="user_code"');
+    expect(res.text).toMatch(/name="email"/);
+    expect(res.text).toMatch(/name="password"/);
   });
 
-  it('rejects malformed user_code with 400', async () => {
+  it('renders a manual-entry form when user_code is malformed', async () => {
     const app = buildApp(createDeviceCodesStore({ verificationUri: 'x' }), { stub: { exchange: jest.fn() } });
     const res = await request(app).get('/oauth/authorize?user_code=not-valid');
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('Enter the valid device code shown by your agent.');
+    expect(res.text).toContain('name="user_code"');
   });
 
-  it('returns 404 for unknown user_code', async () => {
+  it('renders a manual-entry form when user_code is unknown', async () => {
     const app = buildApp(createDeviceCodesStore({ verificationUri: 'x' }), { stub: { exchange: jest.fn() } });
     const res = await request(app).get('/oauth/authorize?user_code=ABCD-EFGH');
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('This device code has expired or is not valid.');
+    expect(res.text).toContain('name="user_code"');
   });
 
   it('returns 503 when oauth is disabled', async () => {
