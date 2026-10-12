@@ -154,8 +154,9 @@ AEM-MCP publishes:
 
 The authorization request's `resource` is carried into the one-time
 authorization code, checked again at the token endpoint, and included as
-the `resource` claim in the issued access token. The legacy `aud: "aem-mcp"`
-claim remains in place for the Journaler backend session bridge.
+the `resource` claim in the issued access token. Both the public origin and
+its `/mcp` endpoint URI are accepted as resource identifiers. The legacy
+`aud: "aem-mcp"` claim remains in place for the Journaler backend session bridge.
 
 For a deployed instance, set `PUBLIC_URL` to its exact public HTTPS origin
 (without a trailing slash), then restart/redeploy the service. Confirm that
