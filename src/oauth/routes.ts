@@ -139,6 +139,7 @@ function handleAuthorizationCodeGrant(
   const redirectUri = body.redirect_uri;
   const clientId = body.client_id;
   const codeVerifier = body.code_verifier;
+  const resource = body.resource;
 
   if (typeof code !== 'string' || code.length === 0) {
     oauthError(res, 'invalid_request', 'code is required', 400);
@@ -154,6 +155,10 @@ function handleAuthorizationCodeGrant(
   }
   if (typeof codeVerifier !== 'string' || codeVerifier.length === 0) {
     oauthError(res, 'invalid_request', 'code_verifier is required', 400);
+    return;
+  }
+  if (resource !== undefined && typeof resource !== 'string') {
+    oauthError(res, 'invalid_request', 'resource must be a string', 400);
     return;
   }
   // RFC 7636 §4.1: code_verifier is 43-128 chars from [A-Z][a-z][0-9]-._~
@@ -176,8 +181,16 @@ function handleAuthorizationCodeGrant(
     oauthError(res, 'invalid_grant', 'client_id does not match the authorization request', 400);
     return;
   }
+  if (resource !== row.resource) {
+    oauthError(res, 'invalid_grant', 'resource does not match the authorization request', 400);
+    return;
+  }
 
-  const { token } = deps.issuer.signAccessToken({ userId: row.userId, jti: row.jti });
+  const { token } = deps.issuer.signAccessToken({
+    userId: row.userId,
+    jti: row.jti,
+    resource: row.resource,
+  });
   deps.pairings.add({
     jti: row.jti,
     userId: row.userId,

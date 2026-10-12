@@ -28,6 +28,7 @@ const AUD = 'aem-mcp' as const;
 export type McpAccessTokenClaims = {
   sub: string;
   aud: typeof AUD;
+  resource?: string;
   jti: string;
   iat: number;
   exp: number;
@@ -43,7 +44,7 @@ export type ExchangeCodeClaims = {
 };
 
 export type Issuer = {
-  signAccessToken: (input: { userId: number; jti?: string; ttlSeconds?: number; now?: () => number }) => {
+  signAccessToken: (input: { userId: number; jti?: string; ttlSeconds?: number; resource?: string; now?: () => number }) => {
     token: string;
     claims: McpAccessTokenClaims;
   };
@@ -79,11 +80,15 @@ export function createIssuer(opts: {
   // For both token kinds: signature/exp/aud failures collapse to
   // invalid_grant (access) or access_denied (exchange) per the spec
   // error tables; missing-required-claim is a distinct shape error.
-  function verifyHs256(token: string, failureCode: 'invalid_grant' | 'access_denied'): JwtPayload {
+  function verifyHs256(
+    token: string,
+    failureCode: 'invalid_grant' | 'access_denied',
+    audience: string = AUD,
+  ): JwtPayload {
     try {
       return jwt.verify(token, opts.signingKey, {
         algorithms: [ALG],
-        audience: AUD,
+        audience,
       }) as JwtPayload;
     } catch (err) {
       if (isExpiredError(err)) {
@@ -98,12 +103,13 @@ export function createIssuer(opts: {
   }
 
   return {
-    signAccessToken({ userId, jti: jtiInput, ttlSeconds = accessTokenTtl, now = Date.now }) {
+    signAccessToken({ userId, jti: jtiInput, ttlSeconds = accessTokenTtl, resource, now = Date.now }) {
       const iat = Math.floor(now() / 1000);
       const exp = iat + ttlSeconds;
       const claims: McpAccessTokenClaims = {
         sub: String(userId),
         aud: AUD,
+        ...(resource ? { resource } : {}),
         jti: jtiInput ?? randomUUID(),
         iat,
         exp,
@@ -129,6 +135,7 @@ export function createIssuer(opts: {
       return {
         sub: payload.sub,
         aud: AUD,
+        ...(typeof payload.resource === 'string' ? { resource: payload.resource } : {}),
         jti: payload.jti,
         iat: payload.iat,
         exp: payload.exp,

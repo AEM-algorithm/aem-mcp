@@ -68,6 +68,7 @@ export function createMcpApp(env: Env): express.Express {
     const baseUrl = env.PUBLIC_URL ?? `http://localhost:${env.PORT}`;
     res.status(200).json({
       issuer: baseUrl,
+      authorization_response_iss_parameter_supported: true,
       authorization_endpoint: `${baseUrl}/authorize`,
       token_endpoint: `${baseUrl}/token`,
       registration_endpoint: `${baseUrl}/register`,
@@ -80,7 +81,15 @@ export function createMcpApp(env: Env): express.Express {
       response_types_supported: ['code'],
       token_endpoint_auth_methods_supported: ['none'],
       scopes_supported: [DEFAULT_SCOPE],
-      code_challenge_methods_supported: ['plain', 'S256'],
+      code_challenge_methods_supported: ['S256'],
+    });
+  });
+  app.get('/.well-known/oauth-protected-resource', (_req, res) => {
+    const baseUrl = env.PUBLIC_URL ?? `http://localhost:${env.PORT}`;
+    res.status(200).json({
+      resource: baseUrl,
+      authorization_servers: [baseUrl],
+      scopes_supported: [DEFAULT_SCOPE],
     });
   });
   const backend = createAemBackendClient(env);
@@ -239,6 +248,13 @@ export function createMcpApp(env: Env): express.Express {
       await server.connect(transport);
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
+      if (error instanceof AuthError || error instanceof AccessTokenError) {
+        const baseUrl = env.PUBLIC_URL ?? `http://localhost:${env.PORT}`;
+        res.setHeader(
+          'WWW-Authenticate',
+          `Bearer resource_metadata="${baseUrl}/.well-known/oauth-protected-resource", scope="${DEFAULT_SCOPE}"`,
+        );
+      }
       handleHttpError(res, error);
     }
   }

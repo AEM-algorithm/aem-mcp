@@ -27,7 +27,8 @@ export class AccessTokenError extends Error {
 
 export type McpAccessTokenClaims = {
   sub: string; // userId as string
-  aud: 'aem-mcp';
+  aud: string;
+  resource?: string;
   jti: string; // UUID
   iat: number;
   exp: number;
@@ -38,6 +39,7 @@ export type VerifiedAccessToken = {
   userId: number;
   jti: string;
   scope: string;
+  resource?: string;
 };
 
 export function verifyAccessToken(token: string, env: Env): VerifiedAccessToken {
@@ -56,7 +58,13 @@ export function verifyAccessToken(token: string, env: Env): VerifiedAccessToken 
   const sub = decoded.sub;
   const aud = decoded.aud;
   const jti = decoded.jti;
-  if (typeof sub !== 'string' || aud !== 'aem-mcp' || typeof jti !== 'string') {
+  const expectedResource = env.PUBLIC_URL ?? `http://localhost:${env.PORT}`;
+  if (
+    typeof sub !== 'string' ||
+    aud !== 'aem-mcp' ||
+    (decoded.resource !== undefined && decoded.resource !== expectedResource) ||
+    typeof jti !== 'string'
+  ) {
     throw new AccessTokenError(
       'wrong_audience',
       'access token has wrong audience or claim shape',
@@ -67,5 +75,10 @@ export function verifyAccessToken(token: string, env: Env): VerifiedAccessToken 
     throw new AccessTokenError('invalid_token', 'access token has invalid subject');
   }
   const scope = typeof decoded.scope === 'string' ? decoded.scope : 'aem-mcp:read';
-  return { userId, jti, scope };
+  return {
+    userId,
+    jti,
+    scope,
+    ...(typeof decoded.resource === 'string' ? { resource: decoded.resource } : {}),
+  };
 }

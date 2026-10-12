@@ -62,6 +62,7 @@ type PendingAuthRequest = {
   codeChallenge: string;
   codeChallengeMethod: 'plain' | 'S256';
   scope: string;
+  resource?: string;
   expiresAt: number; // epoch ms
 };
 const pendingAuthRequests = new Map<string, PendingAuthRequest>();
@@ -161,11 +162,17 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
       const codeChallenge = typeof req.query.code_challenge === 'string' ? req.query.code_challenge : '';
       const codeChallengeMethod = typeof req.query.code_challenge_method === 'string'
         ? req.query.code_challenge_method
-        : 'plain';
+        : '';
       const scope = typeof req.query.scope === 'string' ? req.query.scope : DEFAULT_SCOPE;
+      const resource = typeof req.query.resource === 'string' ? req.query.resource : undefined;
+      const expectedResource = deps.env.PUBLIC_URL ?? `http://localhost:${deps.env.PORT}`;
 
       if (!clientId) {
         resRedirectWithError(res, redirectUri, state, 'invalid_request', 'client_id is required');
+        return;
+      }
+      if (resource !== undefined && resource !== expectedResource) {
+        resRedirectWithError(res, redirectUri, state, 'invalid_target', 'resource does not identify this MCP server');
         return;
       }
       if (!redirectUri || !isValidRedirectUri(redirectUri)) {
@@ -175,7 +182,7 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
           .status(400)
           .type('html')
           .send(
-            '<!doctype html><html><body><p>Invalid redirect_uri. Only loopback http URLs (localhost / 127.0.0.1) are accepted.</p></body></html>',
+            '<!doctype html><html><body><p>Invalid redirect_uri. Use a loopback URL or an allowed ChatGPT callback URL.</p></body></html>',
           );
         return;
       }
@@ -183,9 +190,9 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
         resRedirectWithError(res, redirectUri, state, 'invalid_request', 'code_challenge is required');
         return;
       }
-      if (codeChallengeMethod !== 'plain' && codeChallengeMethod !== 'S256') {
+      if (codeChallengeMethod !== 'S256') {
         resRedirectWithError(res, redirectUri, state, 'invalid_request',
-          `code_challenge_method must be 'plain' or 'S256' (got '${codeChallengeMethod}')`);
+          `code_challenge_method must be 'S256' (got '${codeChallengeMethod}')`);
         return;
       }
 
@@ -193,6 +200,7 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
         clientId, redirectUri, state, codeChallenge,
         codeChallengeMethod,
         scope,
+        resource,
       });
 
       // We piggy-back on the device-flow form (it already collects
@@ -261,6 +269,7 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
     }
     const params = new URLSearchParams({ error, error_description: description });
     if (typeof state === 'string' && state.length > 0) params.set('state', state);
+    params.set('iss', deps.env.PUBLIC_URL ?? `http://localhost:${deps.env.PORT}`);
     res.redirect(302, `${redirectUri}?${params.toString()}`);
   }
 
@@ -358,6 +367,7 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
           clientId: pending.clientId,
           redirectUri: pending.redirectUri,
           scope: pending.scope,
+          resource: pending.resource,
           codeChallenge: pending.codeChallenge,
           codeChallengeMethod: pending.codeChallengeMethod,
           expiresAt: new Date(Date.now() + AUTH_CODE_TTL_SECONDS * 1000).toISOString(),
@@ -371,7 +381,10 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
         });
 
         // 4) 302 redirect to redirect_uri?code=...&state=...
-        const params = new URLSearchParams({ code });
+        const params = new URLSearchParams({
+          code,
+          iss: deps.env.PUBLIC_URL ?? `http://localhost:${deps.env.PORT}`,
+        });
         if (pending.state.length > 0) params.set('state', pending.state);
         res.redirect(302, `${pending.redirectUri}?${params.toString()}`);
         return;

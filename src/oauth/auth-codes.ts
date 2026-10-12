@@ -14,6 +14,7 @@ export type AuthCodeRow = {
   clientId: string;
   redirectUri: string;
   scope: string;
+  resource?: string;
   codeChallenge: string;
   codeChallengeMethod: 'plain' | 'S256';
   expiresAt: string;
@@ -103,6 +104,12 @@ export function isValidRedirectUri(uri: string): boolean {
     parsed = new URL(uri);
   } catch {
     return false;
+  }
+  if (parsed.protocol === 'https:') {
+    return parsed.origin === 'https://chatgpt.com' && (
+      parsed.pathname === '/connector_platform_oauth_redirect' ||
+      /^\/connector\/oauth\/[A-Za-z0-9_-]+$/.test(parsed.pathname)
+    ) && !parsed.username && !parsed.password;
   }
   if (parsed.protocol !== 'http:') return false;
   const host = parsed.hostname.toLowerCase();
