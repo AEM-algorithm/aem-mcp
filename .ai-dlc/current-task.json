@@ -88,9 +88,14 @@
       "tests/unit/verify-session-token.test.ts"
     ],
     "filesPending": [
-      "src/oauth/agent-bind-callback.ts",
-      "src/oauth/routes.ts (modified — register /oauth/authorize/agent-callback)",
-      "src/config/env.ts (modified — MCP_FRONTEND_URL required in prod)"
+      "src/oauth/agent-bind-callback.ts (new)",
+      "src/oauth/routes.ts (modified — register /oauth/authorize/agent-callback; rewire /oauth/activate and device-flow /oauth/authorize to call handleRedirectToFrontend when ?bridge=0 is absent)",
+      "src/oauth/login-exchange-handler.ts (modified — call handleRedirectToFrontend as default, render inline form when ?bridge=0)",
+      "src/oauth/views/device-authorization-page.ts (modified — add @deprecated JSDoc)",
+      "src/config/env.ts (modified — add MCP_INLINE_FORM_OPT_OUT env)",
+      "src/utils/audit.ts (extended — add mcpAgentBindingForwarded)",
+      "tests/unit/oauth/agent-bind-callback.test.ts (new)",
+      "tests/unit/oauth/login-exchange-handler.test.ts (extended)"
     ],
     "outOfScope3a": [],
     "outOfScope3b": [
@@ -104,6 +109,7 @@
     "outOfScope4": [
       "Cursor strict (authorization_code + PKCE) flow — keeps existing bridge",
       "New aem-backend endpoints — /api/oauth/exchange/agent already shipped",
+      "Removing the inline form — preserved behind ?bridge=0 for tests and opt-in",
       "Provider-specific UI — Google, Auth0, MetaMask, Xverse flows unchanged",
       "Refresh tokens, revocation flows"
     ]
@@ -146,7 +152,7 @@
     "phase3aSlice1Status": "Build + lint + 52 unit tests pass (35 existing + 17 new). 1 suite RED (pairings test) by design — its source lands in next batch. PR #9 opened as draft.",
     "phase3aSlice2Status": "Pairings (source) + device-codes + revocation + their tests landed in commit 41a02c3. Build + lint + 77/77 unit tests pass (35 pre-existing + 42 new). 2 bugs fixed mid-slice (caught by tests, not weakened). 3a complete; ready to begin 3b.",
     "phase3bStatus": "Issuer (HS256 JWT sign+verify for access token; exchange_code verify), rate-limit (in-memory token bucket per IP+route), routes (4 endpoints with rate-limit, OAUTH_ENABLED gate, RFC 8628 §3.5 error codes), env extension (MCP_OAUTH_SIGNING_KEY ≥32 bytes, OAUTH_*, RATE_LIMIT_*), server wiring. Build + lint + 134/134 unit tests pass. security:audit reports 1 pre-existing critical (hono/node-server) and 4 high transitive — NOT introduced by this PR; recorded as openEscalation ESC-DEV-4154-005 for human triage.",
-    "phase4Status": "Phase 4 scope locked at 2026-10-16-0128. Spec files written at agent-os/specs/2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login/ (shape.md, plan.md, standards.md, references.md). Mirror written at aem-frontend/agent-os/specs/2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login/. Pre-conditions: ESC-DEV-4154-005 resolved, Phase 3b PR #9 merged, aem-frontend companion ticket filed. No code yet (Refinement)."
+    "phase4Status": "Phase 4 spec redrafted at 2026-10-16-0128 v2 (370 lines shape.md). Aligns with Phase 3b code: /oauth/authorize/redirect-to-frontend bridge is opt-in today, Phase 4 makes it default for /oauth/activate and device-flow /oauth/authorize (preserves inline form behind ?bridge=0). Adds agent-bind-callback handler, audit.mcpAgentBindingForwarded, MCP_INLINE_FORM_OPT_OUT env flag. 11 machine-checkable assertions. Pre-conditions unchanged."
   },
   "openEscalations": [
     {
@@ -196,6 +202,8 @@
       "resolvedAt": "2026-10-09T10:35:00+07:00"
     }
   ],
-  "nextAction": "STOPPED at Phase 3b pending ESC-DEV-4154-005. Phase 4 spec written (shape.md, plan.md, standards.md, references.md) at 2026-10-16-0128. Pre-conditions for Phase 4 execution: (1) ESC-DEV-4154-005 resolved, (2) Phase 3b PR #9 merged, (3) aem-frontend companion ticket filed. After pre-conditions met, agent will: open feature/DEV-4154-phase-4-mcp-default-frontend-login, implement login-exchange-handler 302 redirect + agent-bind-callback handler, write unit tests, run requiredChecks, open PR draft with evidence block.",
-  "phase4StartTime": "2026-10-16T01:28:00+07:00"
+  "nextAction": "STOPPED pending pre-conditions. Phase 4 spec redrafted at 2026-10-16-0128 v2 to align with Phase 3b code (inline form preserved as opt-in via ?bridge=0, bridge is default for /oauth/activate and device-flow /oauth/authorize, new /oauth/authorize/agent-callback endpoint, MCP_INLINE_FORM_OPT_OUT env flag). Pre-conditions: (1) ESC-DEV-4154-005 resolved, (2) Phase 3b PR #9 merged, (3) aem-frontend companion ticket filed. After pre-conditions met, agent will: open feature/DEV-4154-phase-4-mcp-default-frontend-login, implement agent-bind-callback.ts, rewire 2 entry points, add env flag, write unit tests (target 100%), run requiredChecks, open PR draft with evidence block.",
+  "phase4StartTime": "2026-10-16T01:28:00+07:00",
+  "phase4SpecRedraftedAt": "2026-10-16T01:50:00+07:00",
+  "phase4SpecRedraftReason": "User requested rewrite. Original spec overstated 'always 302'; actual code has opt-in bridge. Redraft aligns with Phase 3b code: 2 default entry points wired to bridge, 1 new callback endpoint, opt-in env flag, inline form preserved behind ?bridge=0."
 }

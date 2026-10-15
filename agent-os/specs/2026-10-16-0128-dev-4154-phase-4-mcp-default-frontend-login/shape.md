@@ -2,296 +2,369 @@
 
 ## Identity
 
-- Ticket: DEV-4154 (Phase 4)
+- Ticket: DEV-4154, Phase 4
 - Owner: agent (Cursor Assistant, AI-DLC)
-- Task tier: High (inherited from parent ticket; 2 reviewers: henry, tuan-hoang)
+- Task tier: High (inherited from parent ticket)
 - Spec version: 2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login
-- Mirror date-slug: 2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login
-  - aem-mcp: agent-os/specs/2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login/
-  - aem-frontend: agent-os/specs/2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login/
+- Mirror: aem-frontend/agent-os/specs/2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login/
+- Branches:
+  - aem-mcp: `feature/DEV-4154-phase-4-mcp-default-frontend-login` (base: `develop`)
+  - aem-frontend: `feature/DEV-4154-phase-4-companion-frontend` (base: `stable`)
 
 ## Outcome
 
-When an external agent (Claude Code / Cursor / Codex / ChatGPT) requests
-device authorization from aem-mcp, the user is always redirected to the
-existing /user/login page of aem-frontend (no inline aem-mcp form, no manual
-"Login with Journaler" button). After the user logs in via the React app and
-is bound to the device, the agent's POST /oauth/token poll succeeds and the
-user returns control to their agent. If MCP_FRONTEND_URL is unset, aem-mcp
-returns 503 with a clear message (no inline-form fallback).
+External agents (Claude Code, ChatGPT, Codex) that follow RFC 8628
+device authorization land on aem-frontend's `/user/login` (the React app
+the user already trusts) instead of aem-mcp's inline HTML form. After
+the user signs in, aem-frontend POSTs to aem-backend's
+`/api/oauth/exchange/agent`, receives an `exchangeCode`, and
+`window.location.replace`s the browser to aem-mcp's new
+`/oauth/authorize/agent-callback?code=<exchangeCode>` endpoint. aem-mcp
+verifies the code, calls `deviceCodes.approve(...)`, and renders a
+"Device paired" success page; the agent's next `POST /oauth/token` poll
+returns 200 with an access token.
 
-## Context
+The inline form path (the current default) is preserved behind a query
+flag `?bridge=1` for tests and operators who prefer it. The default
+for new device flows is the React-app bridge.
 
-Phase 3a/3b shipped the OAuth foundation (errors, scopes, pairings, device
-codes, revocation, issuer, rate-limit, routes) on feature/DEV-4154-phase-3a
-(merged 2026-10-09). Phase 4 of the same ticket is the login exchange layer
-that ties aem-mcp's device flow to aem-frontend's existing /user/login page.
+## Context (what already exists in the codebase)
 
-Pre-existing pieces to reuse (no new aem-backend endpoint required):
+Phase 3a/3b on `feature/DEV-4154` already shipped:
 
-- aem-backend: POST /api/oauth/exchange/agent (OAuthExchangeController.agentBind)
-  accepts { mcpState }, verifies the JWT signed with MCP_JWT_SECRET, reads the
-  user from the session cookie, and returns { exchangeCode, expiresIn }.
-- aem-mcp: src/oauth/frontend-login-handler.ts mints mcp_state JWTs (HS256,
-  5-min TTL, carries deviceCode + redirectUri + nonce) when aem-frontend hits
-  the opt-in bridge.
-- aem-mcp: src/oauth/exchange-code-verify.ts verifies the exchangeCode JWT
-  minted by aem-backend (HS256, MCP_OAUTH_SIGNING_KEY, aud='aem-mcp').
+- `src/oauth/frontend-login-handler.ts` — `handleRedirectToFrontend`
+  looks up the device row by `user_code`, signs an HS256 `mcp_state`
+  JWT (5 min TTL, claims `{ deviceCode, redirectUri, nonce }`) with
+  `MCP_JWT_SECRET`, and 302-redirects to
+  `${MCP_FRONTEND_URL}/user/login?mcp_state=…&mcp_redirect_uri=…&state=…`.
+  - 503 when `MCP_FRONTEND_URL` is unset.
+  - 400 when `user_code` invalid / not found.
+  - Error redirect when `redirect_uri` fails the allow-list.
+  - Wired at `GET /oauth/authorize/redirect-to-frontend` (opt-in, not default).
+- `src/oauth/login-exchange-handler.ts` — `GET /oauth/authorize` and
+  `GET /oauth/activate` currently render the inline HTML form
+  (`renderDeviceAuthorizationPage`).
+- `src/oauth/device-codes.ts` — `approve(deviceCode, userId, jti)`
+  flips a row to `{ status: 'approved', userId, jti }`.
+- `src/oauth/exchange-code-verify.ts` — `verifyExchangeCode(token, env)`
+  returns `{ userId, jti }` on success; throws
+  `ExchangeCodeError` (`invalid_token` | `wrong_audience` | `expired`).
+- `src/config/env.ts` — `MCP_FRONTEND_URL: z.string().url().optional()`.
+- `src/utils/audit.ts` — `audit` helper with redaction.
+- aem-backend: `POST /api/oauth/exchange/agent` (OAuthExchangeController.agentBind
+  at line 90, request `AgentBindDto { mcpState }`) — verifies the
+  `mcp_state` JWT, reads the user from the session cookie, and
+  returns `{ exchangeCode, expiresIn }`.
 
-Phase 4 changes the **default entry point** of device authorization so
-external agents stop at the React app instead of an inline HTML form.
+Phase 4 fills the **two missing pieces**: the agent callback endpoint
+on aem-mcp + aem-frontend's mcp_state ride-along, and rewires the two
+default entry points (`/oauth/activate` and `/oauth/authorize`
+device-flow branch) to use the bridge instead of the inline form
+unless the operator explicitly opts in with `?bridge=0`.
 
 ## Inputs and Outputs
 
 ### Inputs
 
-- MCP_FRONTEND_URL (env, aem-mcp) — base URL of aem-frontend. Required in
-  production; optional in dev with a startup warning.
-- MCP_JWT_SECRET (env, shared aem-mcp + aem-backend) — HS256 key for
-  mcp_state JWTs.
-- MCP_OAUTH_SIGNING_KEY (env, aem-mcp) — HS256 key for exchangeCode verify.
-- MCP_STATE_TTL_SECONDS (env, aem-mcp, default 300) — mcp_state TTL.
-- isValidRedirectUri(redirect_uri) helper (existing, aem-mcp).
+- `MCP_FRONTEND_URL` (env, aem-mcp) — base URL of aem-frontend.
+  Required in production; optional in dev (warning at startup).
+- `MCP_JWT_SECRET` (env, shared aem-mcp + aem-backend) — HS256 key
+  for `mcp_state` JWTs.
+- `MCP_OAUTH_SIGNING_KEY` (env, aem-mcp) — HS256 key for `exchangeCode`.
+- `MCP_STATE_TTL_SECONDS` (env, aem-mcp, default 300) — `mcp_state` TTL.
+- `MCP_INLINE_FORM_OPT_OUT` (env, aem-mcp, default false) — when `true`,
+  the inline form path is available via `?bridge=0` on
+  `/oauth/activate` and the device-flow branch of `/oauth/authorize`.
+- `isValidRedirectUri(redirectUri)` — existing allow-list (loopback +
+  ChatGPT callback).
 
 ### Outputs
 
-- GET /oauth/authorize?response_type=device_code → 302 to
-  ${MCP_FRONTEND_URL}/user/login?mcp_state=<jwt>&mcp_redirect_uri=…&state=…
-  (device flow only; the Cursor strict authorization_code+PKCE flow keeps
-  its existing bridge).
-- GET /oauth/activate?user_code=… → 302 to the same URL (this is the
-  verification_uri passed to agents).
-- GET /oauth/authorize/agent-callback?code=<exchangeCode> → verifies
-  exchangeCode, binds the device, returns the "Device paired" success
-  page; the agent's next POST /oauth/token poll returns 200.
-- When MCP_FRONTEND_URL is unset: 503 with text/html body
-  "MCP_FRONTEND_URL is not configured. Set MCP_FRONTEND_URL to enable
-  agent pairing." and a Retry-After: 60 header.
+- `GET /oauth/activate?user_code=…&redirect_uri=…&state=…` →
+  - When `MCP_FRONTEND_URL` is set AND `?bridge=0` is not present →
+    302 to `${MCP_FRONTEND_URL}/user/login?mcp_state=<jwt>&mcp_redirect_uri=…&state=…`.
+  - When `MCP_FRONTEND_URL` is unset → 503 text/plain
+    "MCP_FRONTEND_URL is not configured on this server." (already
+    implemented in `handleRedirectToFrontend`).
+  - When `?bridge=0` is present → render the existing inline form
+    (`renderDeviceAuthorizationPage`).
+- `GET /oauth/authorize?response_type=device_code&user_code=…&redirect_uri=…&state=…`
+  → same dispatch as `/oauth/activate` (device-flow branch only; the
+  Cursor PKCE branch is untouched).
+- `GET /oauth/authorize/agent-callback?code=<exchangeCode>` (new):
+  - 200 text/html "Device paired" success page on success.
+  - 400 text/html with explanation on `ExchangeCodeError`,
+    missing `code`, or `deviceCodes.approve` failure.
+  - Idempotent: a second visit after binding still renders the success
+    page (does not re-consume the device row).
+- `src/oauth/agent-bind-callback.ts` (new module) exports
+  `makeHandleAgentBindCallback({ env, deviceCodes })` returning the
+  Express handler.
 
 ## In Scope
 
-1. aem-mcp — src/oauth/login-exchange-handler.ts: replace the inline-form
-   rendering path with a 302 redirect when MCP_FRONTEND_URL is set; 503
-   otherwise. Keep the existing email/password validation in the
-   "POST /oauth/authorize" body handler (used by tests and legacy
-   direct-form calls) but document it as a fallback.
-2. aem-mcp — src/oauth/agent-bind-callback.ts (new): handler for
-   GET /oauth/authorize/agent-callback. Verifies exchangeCode via
-   exchange-code-verify.ts, calls deviceCodes.approve(deviceCode, userId,
-   jti), renders a "Device paired" success page.
-3. aem-mcp — src/oauth/routes.ts: register
-   GET /oauth/authorize/agent-callback route. Add a 302 path in the
-   GET /oauth/authorize handler for the device_flow response_type.
-4. aem-mcp — src/oauth/views/device-authorization-page.ts: keep the file
-   (Cursor strict bridge still uses it) but mark it
-   `@deprecated` in JSDoc with a pointer to the new default.
-5. aem-mcp — src/config/env.ts: mark MCP_FRONTEND_URL required in
-   production; emit a warning at startup if unset in dev.
-6. aem-mcp — src/utils/audit.ts: add audit.mcpAgentBindingForwarded()
-   that records { deviceCode, userId, jti, ts } without secrets.
-7. aem-frontend — src/services/mcpAgent.js (new): function
-   bindMcpAgent(mcpState) POSTs /api/oauth/exchange/agent and returns
-   { exchangeCode, expiresIn } on 200 or throws typed errors for
-   401, 4xx, 5xx, network.
-8. aem-frontend — src/pages/user/login/index.jsx: read mcp_state +
-   mcp_redirect_uri from the URL query, hold in component state, after
-   login (any provider) call bindMcpAgent(mcpState) and on success
-   window.location.replace(mcp_redirect_uri + '?code=' + exchangeCode).
-9. aem-frontend — src/pages/user/login/components/McpBindingBanner.jsx
-   (new, optional): inline error banner for expired mcp_state or
-   network failure.
-10. Tests:
-    - aem-mcp tests/unit/oauth/login-exchange-handler.test.ts: extend
-      with 302 redirect + 503 cases.
-    - aem-mcp tests/unit/oauth/agent-bind-callback.test.ts (new):
-      happy path, expired code, malformed code, already-bound device.
-    - aem-frontend tests/login.test.jsx: extend with mcp_state ride-along
-      using jest.mock('@/services/mcpAgent') — three paths
-      (200 success, 401 expired, network error).
-11. Env docs: aem-mcp/.env.example marks MCP_FRONTEND_URL required in
-    production. aem-frontend/README.md adds a "Agent pairing callback"
-    section.
+### aem-mcp
+
+1. **`src/oauth/agent-bind-callback.ts` (new)**
+   - `makeHandleAgentBindCallback({ env, deviceCodes })`
+   - Read `code` from `req.query`.
+   - On missing → 400 text/plain "code is required".
+   - `try { verifyExchangeCode(code, env) } catch (e: ExchangeCodeError)`
+     → 400 text/html with `e.code` in a comment for debugging; no
+     secret in response.
+   - `deviceCodes.approve(deviceCodeFromState, userId, jti)`. The
+     `deviceCode` for a successful `verifyExchangeCode` is **not** in
+     the `exchangeCode` claims (sub=userId, jti=uuid). We need to
+     find the device row by `userId` whose `status` is `pending` and
+     that was minted within the last 5 minutes (the bridge TTL).
+   - Render success page inline (mirror style of
+     `views/device-authorization-page.ts`).
+   - Idempotency: if `approve` is called twice (double-click, browser
+     back), the second call should still render the success page
+     without flipping state. Implementation: catch the
+     "already approved" path and return 200.
+2. **`src/oauth/routes.ts`** — register
+   `GET /oauth/authorize/agent-callback` → new handler.
+3. **`src/oauth/login-exchange-handler.ts`** — in the
+   `GET /oauth/activate` and the device-flow branch of
+   `GET /oauth/authorize`:
+   - When `?bridge=0` is present, render the existing inline form.
+   - Otherwise, call the existing
+     `handleRedirectToFrontend(req, res)` (extract the inline-form
+     rendering into a sub-step, or call the handler directly).
+4. **`src/oauth/views/device-authorization-page.ts`** — add
+   `@deprecated` JSDoc on `renderDeviceAuthorizationPage` pointing
+   to the React app bridge (kept for tests + opt-in).
+5. **`src/config/env.ts`** — add `MCP_INLINE_FORM_OPT_OUT`
+   (z.boolean().default(false)). In production, if
+   `MCP_FRONTEND_URL` is unset and `MCP_INLINE_FORM_OPT_OUT` is false,
+   log a startup warning.
+6. **`src/utils/audit.ts`** — add `audit.mcpAgentBindingForwarded({ deviceCode, userId, jti })`
+   reusing the existing redaction list. Emit a single record at the
+   point of `deviceCodes.approve` success.
+7. **Tests**:
+   - `tests/unit/oauth/agent-bind-callback.test.ts` (new):
+     - happy path (200 success page, `deviceCodes.approve` called once,
+       `audit.mcpAgentBindingForwarded` called once).
+     - missing `code` (400).
+     - expired `exchangeCode` (400, no approve).
+     - malformed `exchangeCode` (400, no approve).
+     - already-approved device (200 success page, second approve
+       is a no-op, audit called at most once).
+     - `deviceCodes.approve` throws (500 with opaque message, no
+       secret leak).
+   - Extend `tests/unit/oauth/login-exchange-handler.test.ts`:
+     - `GET /oauth/activate` with `?bridge=0` → inline form.
+     - `GET /oauth/activate` without `?bridge=0` and
+       `MCP_FRONTEND_URL` set → 302 to frontend URL with mcp_state
+       verifying locally.
+     - `GET /oauth/activate` without `?bridge=0` and
+       `MCP_FRONTEND_URL` unset → 503.
+     - Same 3 cases for the device-flow branch of
+       `GET /oauth/authorize`.
+8. **`.env.example`** — add `MCP_INLINE_FORM_OPT_OUT=false`,
+   mark `MCP_FRONTEND_URL` as required in production.
+
+### aem-frontend
+
+1. **`src/services/mcpAgent.js` (new)**:
+   - `bindMcpAgent(mcpState)` → POSTs `/api/oauth/exchange/agent`
+     with body `{ mcpState }` using the existing
+     `src/services/api.js` `request` helper.
+   - Throws typed errors:
+     - `McpStateExpiredError` on 401 `invalidMcpState`.
+     - `McpBindError` on other 4xx/5xx (with status).
+     - `NetworkError` on fetch failure.
+   - Returns `{ exchangeCode, expiresIn }` on 200.
+2. **`src/pages/user/login/index.jsx` (modified)**:
+   - On mount: read `mcp_state` and `mcp_redirect_uri` from
+     `window.location.search`. Hold in `useState`.
+   - After login dispatch resolves successfully and the user is on
+     the page: `await bindMcpAgent(mcp_state)`. On success:
+     `window.location.replace(mcp_redirect_uri + '?code=' + exchangeCode)`.
+   - On error: render `<McpBindingBanner error={e} />`.
+3. **`src/pages/user/login/components/McpBindingBanner.jsx`
+   (new, optional)** — Ant Design `<Alert type="error">` with
+   `e.message` from `bindMcpAgent`.
+4. **`tests/login.test.jsx` (extended)**:
+   - mount with `?mcp_state=valid_jwt&mcp_redirect_uri=https://agent/cb`,
+     submit valid credentials, mock `bindMcpAgent` to resolve
+     `{ exchangeCode: 'ex' }`, assert
+     `window.location.replace` called once with
+     `https://agent/cb?code=ex`.
+   - mock `bindMcpAgent` to reject with `McpStateExpiredError` →
+     `<McpBindingBanner>` renders, no `replace`.
+   - mock `bindMcpAgent` to reject with `NetworkError` →
+     `<McpBindingBanner>` renders, no `replace`.
+   - mount without `mcp_state` → existing login tests pass, no
+     `bindMcpAgent` call.
 
 ## Out of Scope
 
 - Cursor strict (authorization_code + PKCE) flow — keeps its existing
-  bridge (src/oauth/views/device-authorization-page.ts still used).
-- New aem-backend endpoints — /api/oauth/exchange/agent already shipped
-  in Phase 6.
-- Provider-specific UI in aem-frontend (Google, Auth0, MetaMask, Xverse)
-  — login page already routes.
+  bridge (`/oauth/authorize/redirect-to-frontend` is one piece of
+  that flow; not changed).
+- New aem-backend endpoints — `/api/oauth/exchange/agent` shipped in
+  Phase 6.
+- Provider-specific UI (Google, Auth0, MetaMask, Xverse) — login
+  page already routes.
 - Refresh tokens, revocation flows.
-- Hardening against phishing of the verification_uri (MCP_FRONTEND_URL
-  is server-configured; users don't type it).
+- Hardening against phishing of the verification_uri
+  (`MCP_FRONTEND_URL` is server-configured).
 
 ## Constraints
 
 ### Architecture
 
-- aem-mcp layered: new code in src/oauth/ (router + handler modules).
-  No business logic in routes.ts.
-- aem-frontend: mcp_state handling lives in src/pages/user/login/ (the
-  existing page component). Use the existing src/models/login.js Dva
-  model effects; do not bypass the model.
+- aem-mcp layered: new module `src/oauth/agent-bind-callback.ts`;
+  route wiring only in `src/oauth/routes.ts`; no business logic
+  in `routes.ts`.
+- aem-frontend: mcp_state handling lives in the existing
+  `src/pages/user/login/index.jsx`; use the existing
+  `src/models/login.js` Dva model for the login effect.
+- No new npm dependencies.
+- 100% statements / branches / functions / lines on touched files.
 
-### Security/data
+### Security / data
 
-- mcp_state JWT: HS256 with MCP_JWT_SECRET, MCP_STATE_TTL_SECONDS TTL
-  (default 5 min). Reject if expired, aud/deviceCode mismatched, or
-  redirect_uri not allow-listed.
-- exchangeCode JWT: HS256 with MCP_OAUTH_SIGNING_KEY, aud='aem-mcp',
-  expiresIn 60s (existing). One-shot consumption.
-- Never log mcpState, exchangeCode, password, TOTP, or session cookie.
-  utils/audit redaction must apply.
-- MCP_FRONTEND_URL: validate URL parses; scheme must be http or https;
-  reject any value with user-controlled path components that could
-  enable open-redirect.
-- isValidRedirectUri: existing allow-list; reuse.
+- `mcp_state` JWT: HS256 with `MCP_JWT_SECRET`,
+  `MCP_STATE_TTL_SECONDS` TTL (default 5 min). Reject if expired,
+  aud/deviceCode mismatched, or `redirect_uri` not allow-listed.
+- `exchangeCode` JWT: HS256 with `MCP_OAUTH_SIGNING_KEY`, `aud='aem-mcp'`,
+  60s TTL (existing). One-shot consumption.
+- Never log `mcpState`, `exchangeCode`, password, TOTP, or session
+  cookie. `utils/audit` redaction must apply.
+- `MCP_FRONTEND_URL`: validate URL parses; scheme must be `http` or
+  `https`; reject any value with user-controlled path components
+  that could enable open-redirect.
+- `isValidRedirectUri`: existing allow-list; reuse.
 
 ### Performance
 
 - 302 redirect adds one hop. Negligible.
-- Backend /api/oauth/exchange/agent already p95 < 200 ms.
+- Backend `/api/oauth/exchange/agent` p95 < 200 ms (existing).
 
 ### Compatibility
 
-- Local dev: MCP_FRONTEND_URL=http://localhost:8000 works with the
-  default Umi dev server (port 8000).
-- If MCP_FRONTEND_URL missing: 503 (NOT a fallback to inline form).
+- Local dev: `MCP_FRONTEND_URL=http://localhost:8000` works with
+  the default Umi dev server (port 8000).
+- If `MCP_FRONTEND_URL` is unset: 503 (NOT a fallback to inline form
+  unless `?bridge=0` is explicit).
 
 ### Protected paths (aem-mcp AI-DLC)
 
-- **/auth/**, .env* — only via PR; no direct edits.
-- .ai-dlc/runtime/ — only the plugin writes; do not edit.
+- `/auth/`, `.env*` — only via PR; no direct edits.
+- `.ai-dlc/runtime/` — only the plugin writes; do not edit.
 
 ### Frontend rules (aem-frontend)
 
-- No inline-disable of ESLint / Prettier; run npm run lint before commit.
-- Boolean query params must be serialized explicitly
-  (!!params.withFee = !!params.withFee) before request(...).
-- Use the existing src/models/login.js Dva model for the login effect;
-  the mcp_state ride-along is post-login only.
+- No inline-disable of ESLint / Prettier.
+- Boolean query params serialized explicitly before `request(...)`.
+- Use the existing `src/models/login.js` Dva model.
 
-## Dependencies and Affected Systems
+## Test Assertions (machine-checkable)
 
-- aem-backend: /api/oauth/exchange/agent (existing, no change).
-- aem-mcp:
-  - src/oauth/login-exchange-handler.ts (modified)
-  - src/oauth/agent-bind-callback.ts (new)
-  - src/oauth/routes.ts (modified)
-  - src/oauth/views/device-authorization-page.ts (deprecated in JSDoc)
-  - src/config/env.ts (modified)
-  - src/utils/audit.ts (extended)
-  - tests/unit/oauth/login-exchange-handler.test.ts (extended)
-  - tests/unit/oauth/agent-bind-callback.test.ts (new)
-- aem-frontend:
-  - src/services/mcpAgent.js (new)
-  - src/pages/user/login/index.jsx (modified)
-  - src/pages/user/login/components/McpBindingBanner.jsx (new, optional)
-  - tests/login.test.jsx (extended)
-
-## Test Assertions
-
-1. Given MCP_FRONTEND_URL is unset, when GET /oauth/authorize is called
-   with response_type=device_code, then aem-mcp returns 503 with the
-   message "MCP_FRONTEND_URL is not configured…".
-2. Given MCP_FRONTEND_URL=https://app.example and a fresh device_code,
-   when GET /oauth/authorize?response_type=device_code is called, then
-   aem-mcp 302s to
-   https://app.example/user/login?mcp_state=<jwt>&mcp_redirect_uri=…&state=…
-   and the Location header's mcp_state verifies with the public
-   MCP_JWT_SECRET, contains the deviceCode, and has TTL ≤ 5 min.
-3. Given aem-mcp receives
-   GET /oauth/activate?user_code=ABCD-1234, when the user_code is valid
-   and MCP_FRONTEND_URL is set, then aem-mcp 302s to
-   ${MCP_FRONTEND_URL}/user/login?mcp_state=… (same shape as #2).
-4. Given aem-frontend is at /user/login?mcp_state=…&mcp_redirect_uri=…
-   and the user submits valid email/password credentials, when login
-   succeeds and bindMcpAgent returns 200, then aem-frontend calls
-   window.location.replace(mcp_redirect_uri + '?code=' + exchangeCode)
-   exactly once and the test asserts mcpAgent.bindMcpAgent was called
-   once with the original mcpState.
-5. Given bindMcpAgent returns 401 invalidMcpState, when the user
-   finishes login, then aem-frontend renders the McpBindingBanner
-   ("This pairing request has expired. Please return to your agent to
-   restart.") and does NOT navigate.
-6. Given aem-mcp receives
-   GET /oauth/authorize/agent-callback?code=<exchangeCode>, when
-   exchange-code-verify returns a valid (userId, jti) and the device
-   row is still pending, then aem-mcp binds the device, renders
-   "Device paired" success page, and a subsequent POST /oauth/token
-   for that device_code returns 200 with an access_token.
-7. Given the exchange code is expired, malformed, or the device row is
-   already bound, when the callback fires, then aem-mcp renders a 400
-   HTML page with a clear message and does NOT consume the device row
-   a second time.
-8. Given the bridge URL is visited twice (browser back), when the
-   second visit happens after binding, then aem-mcp renders the
-   "Device paired" success page without re-binding (idempotent).
-9. Given MCP_FRONTEND_URL=http://evil.com is somehow injected, when
-   aem-mcp reads it at startup, then env validation rejects the value
-   (scheme must be http/https) and refuses to 302 to a non-allow-listed
-   host.
+1. Given `MCP_FRONTEND_URL` unset and `?bridge=0` not present, when
+   `GET /oauth/activate?user_code=VALID` is called, then aem-mcp
+   returns 503 with body containing "MCP_FRONTEND_URL is not configured".
+2. Given `MCP_FRONTEND_URL=https://app.example` and a fresh device row
+   for `user_code=VALID`, when `GET /oauth/activate?user_code=VALID&redirect_uri=…&state=…`
+   is called, then aem-mcp 302s to
+   `https://app.example/user/login?mcp_state=<jwt>&mcp_redirect_uri=…&state=…`,
+   and the `mcp_state` verifies with `MCP_JWT_SECRET` and contains
+   the device's `deviceCode` claim.
+3. Given `MCP_FRONTEND_URL` is set and `?bridge=0` is present, when
+   `GET /oauth/activate?user_code=VALID&bridge=0` is called, then
+   aem-mcp renders the existing inline form HTML (no 302).
+4. Given a fresh device row, when
+   `GET /oauth/authorize?response_type=device_code&user_code=VALID&redirect_uri=…`
+   is called, then aem-mcp 302s to the React app (same as #2).
+5. Given aem-frontend mounts `/user/login?mcp_state=valid_jwt&mcp_redirect_uri=https://agent/callback`,
+   and the user submits valid credentials, and `bindMcpAgent` resolves
+   with `{ exchangeCode: 'EX' }`, then aem-frontend calls
+   `window.location.replace('https://agent/callback?code=EX')` exactly
+   once.
+6. Given `bindMcpAgent` rejects with `McpStateExpiredError`, then
+   `<McpBindingBanner>` renders and `window.location.replace` is not
+   called.
+7. Given `bindMcpAgent` rejects with `NetworkError`, then
+   `<McpBindingBanner>` renders and `window.location.replace` is not
+   called.
+8. Given a valid `exchangeCode` JWT and a pending device row, when
+   `GET /oauth/authorize/agent-callback?code=…` is called, then aem-mcp
+   renders the "Device paired" success page, `deviceCodes.approve` was
+   called once with the right args, and `audit.mcpAgentBindingForwarded`
+   emitted one record without secrets.
+9. Given the callback is visited twice (browser back), then the second
+   visit renders the success page without re-flipping device state and
+   the audit record is emitted at most once.
+10. Given the `exchangeCode` is expired or malformed, when the
+    callback fires, then aem-mcp returns 400 HTML with a clear
+    message, `deviceCodes.approve` is NOT called, and no audit record
+    is emitted.
+11. Given `MCP_FRONTEND_URL` is `http://evil.com` and
+    `MCP_INLINE_FORM_OPT_OUT=false`, when env validation runs at
+    startup, then the URL is rejected (scheme allow-list or
+    production-only restriction) and the server refuses to 302 to a
+    non-allow-listed host.
 
 ## Required Verification
 
 - aem-mcp:
-  - npm run lint
-  - npm test (≥ 90% statements/branches/functions/lines on touched
-    files; target 100%)
-  - npm run build
-  - npm run security:audit (must clear ESC-DEV-4154-005 first)
+  - `npm run lint`
+  - `npm test` (target 100% on touched files)
+  - `npm run build`
+  - `npm run security:audit` (must clear `ESC-DEV-4154-005` first)
 - aem-frontend:
-  - npm run lint
-  - npm run tsc
-  - npm run test
+  - `npm run lint`
+  - `npm run tsc`
+  - `npm run test`
 - Manual E2E (recorded in PR description):
   1. Start aem-backend, aem-frontend (dev), aem-mcp with
-     MCP_FRONTEND_URL=http://localhost:8000.
+     `MCP_FRONTEND_URL=http://localhost:8000`.
   2. From a scratch terminal, run
-     curl -X POST http://localhost:7000/oauth/device -d '{}' and note
-     the user_code + verification_uri_complete.
-  3. Open verification_uri_complete in a browser, sign in via
-     /user/login, observe the "Device paired" page, and verify
-     POST /oauth/token from the same shell returns 200 with
-     access_token.
+     `curl -X POST http://localhost:7000/oauth/device -d '{}'` and
+     note the `user_code` + `verification_uri_complete`.
+  3. Open `verification_uri_complete` in a browser, sign in via
+     `/user/login`, observe the "Device paired" page, and verify
+     `POST /oauth/token` from the same shell returns 200 with
+     `access_token`.
 
 ## Rollback
 
 - Revert the PR (one PR per repo). Both aem-mcp and aem-frontend
-  revert independently. The previous opt-in bridge
-  /oauth/authorize/redirect-to-frontend and the inline form
+  revert independently. The opt-in bridge
+  `/oauth/authorize/redirect-to-frontend` and the inline form
   remain in the prior commit.
 - If the frontend change ships first but aem-mcp cannot ship, the
-  frontend silently ignores mcp_state (no regression).
+  frontend silently ignores `mcp_state` (no regression).
 
 ## Stop and Escalation Conditions
 
-- aem-backend /api/oauth/exchange/agent is missing or returns shape
-  changes (no exchangeCode field, wrong aud claim) — escalate; do not
-  invent a parallel endpoint.
-- aem-mcp MCP_JWT_SECRET not aligned with aem-backend verification
-  (regression of the JWT verifier) — stop and escalate; this would
-  break the entire bridge.
+- aem-backend `/api/oauth/exchange/agent` is missing or returns
+  shape changes (no `exchangeCode` field, wrong `aud` claim) —
+  escalate; do not invent a parallel endpoint.
+- aem-mcp `MCP_JWT_SECRET` not aligned with aem-backend verification
+  — stop and escalate; this would break the entire bridge.
 - The new default redirect makes the local-dev experience worse for
   aem-mcp maintainers (e.g. they need the frontend running to pair
-  an agent) — stop and propose an env flag (MCP_INLINE_FORM_FALLBACK)
-  in a follow-up spec.
-- security:audit gate (ESC-DEV-4154-005) unresolved — do not start
+  an agent) — stop and propose an env flag (`MCP_INLINE_FORM_OPT_OUT`)
+  in a follow-up spec. **This flag is now in scope per request 2026-10-16.**
+- `security:audit` gate (`ESC-DEV-4154-005`) unresolved — do not start
   implementation.
 
 ## Definition of Done
 
-- [ ] All 9 assertions have evidence (test names + manual transcript
+- [ ] All 11 assertions have evidence (test names + manual transcript
       snippets pasted in PR).
-- [ ] npm run lint, npm test, npm run tsc green in both repos.
-- [ ] npm run build green in aem-mcp.
+- [ ] `npm run lint`, `npm test`, `npm run tsc` green in both repos.
+- [ ] `npm run build` green in aem-mcp.
 - [ ] Scope, security, and risk tier unchanged from this spec.
 - [ ] PR descriptions (one per repo) include: outcome, risk,
-      assumptions (e.g. MCP_FRONTEND_URL set in production),
+      assumptions (e.g. `MCP_FRONTEND_URL` set in production),
       affected systems, and rollback steps above.
 - [ ] No secrets, no exchange codes, no TOTP, no passwords logged
       in either repo.
-- [ ] Updated .env.example and README sections land in the same PR.
-- [ ] current-task.json updated with phase4DraftPr.url after the PR
-      opens.
+- [ ] Updated `.env.example` and README sections land in the same PR.
+- [ ] `current-task.json` updated with `phase4DraftPr.url` after the
+      PR opens.
