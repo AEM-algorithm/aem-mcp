@@ -2,11 +2,11 @@
   "ticket": "DEV-4154",
   "ticketTitle": "Allow for AI agent to connect to Journaler (Claude Code, ChatGPT, Codex, Cursor)",
   "ticketUrl": "https://app.clickup.com/t/14zervyrhwj",
-  "specVersion": "2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth",
-  "specPath": "agent-os/specs/2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth",
-  "branch": "feature/DEV-4154-phase-3a-oauth-foundation",
-  "phase": "3a (split per ESC-DEV-4154-004)",
-  "phaseName": "OAuth foundation slice 1: errors + scopes + pairings test",
+  "specVersion": "2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login",
+  "specPath": "agent-os/specs/2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login",
+  "branch": "feature/DEV-4154-phase-4-mcp-default-frontend-login",
+  "phase": "4 (mcp-default-frontend-login)",
+  "phaseName": "Default aem-mcp device authorization to aem-frontend /user/login",
   "pr": {
     "specPr": {
       "url": "https://github.com/AEM-algorithm/aem-mcp/pull/5",
@@ -21,10 +21,18 @@
     "phase3aSlice1DraftPr": {
       "url": "https://github.com/AEM-algorithm/aem-mcp/pull/9",
       "number": 9,
-      "state": "draft",
+      "state": "merged",
       "head": "feature/DEV-4154-phase-3a-oauth-foundation",
       "base": "develop",
-      "title": "DEV-4154-mcp: Phase 3a slice 1 — OAuth foundation (errors, scopes, pairings test) [WIP]"
+      "title": "DEV-4154-mcp: Phase 3a slice 1 — OAuth foundation (errors, scopes, pairings test)"
+    },
+    "phase4DraftPr": {
+      "url": "https://github.com/AEM-algorithm/aem-mcp/pull/TBD",
+      "number": null,
+      "state": "draft",
+      "head": "feature/DEV-4154-phase-4-mcp-default-frontend-login",
+      "base": "develop",
+      "title": "DEV-4154-mcp: Phase 4 — defaults device authorization to aem-frontend /user/login"
     }
   },
   "taskTier": "High",
@@ -79,7 +87,11 @@
       "tests/unit/load-env.test.ts",
       "tests/unit/verify-session-token.test.ts"
     ],
-    "filesPending": [],
+    "filesPending": [
+      "src/oauth/agent-bind-callback.ts",
+      "src/oauth/routes.ts (modified — register /oauth/authorize/agent-callback)",
+      "src/config/env.ts (modified — MCP_FRONTEND_URL required in prod)"
+    ],
     "outOfScope3a": [],
     "outOfScope3b": [
       "src/oauth/views/ HTML form (defer to Phase 4 — login exchange)",
@@ -88,6 +100,12 @@
       "src/auth/verify-session-token.ts MCP-access dispatch (Phase 5 — protected path)",
       "src/auth/revocation-check.ts (Phase 5 — protected path)",
       "src/clients/aem-backend-oauth-client.ts (Phase 4)"
+    ],
+    "outOfScope4": [
+      "Cursor strict (authorization_code + PKCE) flow — keeps existing bridge",
+      "New aem-backend endpoints — /api/oauth/exchange/agent already shipped",
+      "Provider-specific UI — Google, Auth0, MetaMask, Xverse flows unchanged",
+      "Refresh tokens, revocation flows"
     ]
   },
   "sandbox": {
@@ -113,7 +131,8 @@
     "aem-backend changes POST /api/oauth/exchange response shape",
     "Tuan Hoang unavailable for 48h",
     "Test weakening requested",
-    "Phase 3 reveals need for RS256/JWKS"
+    "Phase 3 reveals need for RS256/JWKS",
+    "MCP_FRONTEND_URL not configured in production rollout (Phase 4 hard-require)"
   ],
   "evidence": {
     "localPath": ".ai-dlc/evidence/dev-4154-mcp/",
@@ -126,7 +145,8 @@
     ],
     "phase3aSlice1Status": "Build + lint + 52 unit tests pass (35 existing + 17 new). 1 suite RED (pairings test) by design — its source lands in next batch. PR #9 opened as draft.",
     "phase3aSlice2Status": "Pairings (source) + device-codes + revocation + their tests landed in commit 41a02c3. Build + lint + 77/77 unit tests pass (35 pre-existing + 42 new). 2 bugs fixed mid-slice (caught by tests, not weakened). 3a complete; ready to begin 3b.",
-    "phase3bStatus": "Issuer (HS256 JWT sign+verify for access token; exchange_code verify), rate-limit (in-memory token bucket per IP+route), routes (4 endpoints with rate-limit, OAUTH_ENABLED gate, RFC 8628 §3.5 error codes), env extension (MCP_OAUTH_SIGNING_KEY ≥32 bytes, OAUTH_*, RATE_LIMIT_*), server wiring. Build + lint + 134/134 unit tests pass. security:audit reports 1 pre-existing critical (hono/node-server) and 4 high transitive — NOT introduced by this PR; recorded as openEscalation ESC-DEV-4154-005 for human triage."
+    "phase3bStatus": "Issuer (HS256 JWT sign+verify for access token; exchange_code verify), rate-limit (in-memory token bucket per IP+route), routes (4 endpoints with rate-limit, OAUTH_ENABLED gate, RFC 8628 §3.5 error codes), env extension (MCP_OAUTH_SIGNING_KEY ≥32 bytes, OAUTH_*, RATE_LIMIT_*), server wiring. Build + lint + 134/134 unit tests pass. security:audit reports 1 pre-existing critical (hono/node-server) and 4 high transitive — NOT introduced by this PR; recorded as openEscalation ESC-DEV-4154-005 for human triage.",
+    "phase4Status": "Phase 4 scope locked at 2026-10-16-0128. Spec files written at agent-os/specs/2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login/ (shape.md, plan.md, standards.md, references.md). Mirror written at aem-frontend/agent-os/specs/2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login/. Pre-conditions: ESC-DEV-4154-005 resolved, Phase 3b PR #9 merged, aem-frontend companion ticket filed. No code yet (Refinement)."
   },
   "openEscalations": [
     {
@@ -137,7 +157,9 @@
       "agentAction": "Did NOT touch dependencies. Recorded finding; will not bypass the gate.",
       "henryDecisionNeeded": "Choose one: (A) `npm audit fix` as a separate chore PR (will bump axios, express, @hono/node-server, mcp-sdk), (B) `npm audit fix --force` (may break compat), (C) waive the gate for this PR and re-run after a dedicated dependency-upgrade ticket, (D) investigate root causes and pin overrides individually.",
       "recommendation": "(A) chore PR. Smallest blast radius; keeps the OAuth PR focused.",
-      "blockingPRs": [9],
+      "blockingPRs": [
+        9
+      ],
       "phase": "3b"
     }
   ],
@@ -153,7 +175,9 @@
       "phase3aExecutionStatus": "COMPLETE. Slice 1 (5 files) + slice 2 (5 files) shipped on feature/DEV-4154-phase-3a-oauth-foundation (commits 1acadf7 + 41a02c3). 77/77 unit tests pass; build + lint clean. Ready to begin Phase 3b.",
       "resolution": "cap raised to 1000, agent resumed and completed slice 2 in same session. 3a is fully shipped.",
       "resolvedAt": "2026-10-09T11:45:00+07:00",
-      "blockingPRs": [9]
+      "blockingPRs": [
+        9
+      ]
     },
     {
       "id": "ESC-DEV-4154-001",
@@ -172,5 +196,6 @@
       "resolvedAt": "2026-10-09T10:35:00+07:00"
     }
   ],
-  "nextAction": "STOPPED at Phase 3b. Build + lint + 134/134 unit tests pass. security:audit reports 1 critical + 4 high (all pre-existing transitive deps; no new code introduced by this work). Awaiting Henry's decision on ESC-DEV-4154-005 (A) `npm audit fix` chore PR / (B) `--force` / (C) waive gate / (D) pin overrides. Will NOT open PR or push 3b code while the gate fails. Once Henry unblocks, agent will commit + push + refresh PR #9 (still draft) with full evidence block."
+  "nextAction": "STOPPED at Phase 3b pending ESC-DEV-4154-005. Phase 4 spec written (shape.md, plan.md, standards.md, references.md) at 2026-10-16-0128. Pre-conditions for Phase 4 execution: (1) ESC-DEV-4154-005 resolved, (2) Phase 3b PR #9 merged, (3) aem-frontend companion ticket filed. After pre-conditions met, agent will: open feature/DEV-4154-phase-4-mcp-default-frontend-login, implement login-exchange-handler 302 redirect + agent-bind-callback handler, write unit tests, run requiredChecks, open PR draft with evidence block.",
+  "phase4StartTime": "2026-10-16T01:28:00+07:00"
 }
