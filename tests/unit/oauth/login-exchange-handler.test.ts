@@ -123,6 +123,64 @@ describe('login exchange handler — GET /oauth/authorize', () => {
     expect(res.text).toContain('name="authRequestId"');
   });
 
+  it('accepts Gemini CLI authorization requests using an IPv6 loopback callback', async () => {
+    const app = buildApp(createDeviceCodesStore(), {
+      stub: { exchange: jest.fn(), exchangeBySession: jest.fn() },
+    });
+    const res = await request(app).get('/oauth/authorize').query({
+      response_type: 'code',
+      client_id: 'gemini-cli-test',
+      redirect_uri: 'http://[::1]:43123/oauth/callback',
+      state: 'ipv6-state',
+      code_challenge: 'test-challenge',
+      code_challenge_method: 'S256',
+    });
+
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.location);
+    expect(location.origin).toBe('http://localhost:8000');
+    expect(location.searchParams.get('mcp_state')).toBeTruthy();
+  });
+
+  it('accepts Gemini Connected Apps OAuth relay callbacks', async () => {
+    const app = buildApp(createDeviceCodesStore(), {
+      stub: { exchange: jest.fn(), exchangeBySession: jest.fn() },
+    });
+    const redirectUri =
+      'https://oauth-redirect.googleusercontent.com/r/user_bound_custom-mcp-100759728686723321902-mcp-staging_aem_ac';
+    const res = await request(app).get('/oauth/authorize').query({
+      response_type: 'code',
+      client_id: 'gemini-web-test',
+      redirect_uri: redirectUri,
+      state: 'gemini-state',
+      code_challenge: 'test-challenge',
+      code_challenge_method: 'S256',
+    });
+
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.location);
+    expect(location.origin).toBe('http://localhost:8000');
+    expect(location.searchParams.get('mcp_state')).toBeTruthy();
+  });
+
+  it('rejects lookalike hosts for Gemini Connected Apps callbacks', async () => {
+    const app = buildApp(createDeviceCodesStore(), {
+      stub: { exchange: jest.fn(), exchangeBySession: jest.fn() },
+    });
+    const res = await request(app).get('/oauth/authorize').query({
+      response_type: 'code',
+      client_id: 'gemini-web-test',
+      redirect_uri:
+        'https://oauth-redirect.googleusercontent.com.attacker.example/r/user_bound_custom-mcp-123',
+      state: 'gemini-state',
+      code_challenge: 'test-challenge',
+      code_challenge_method: 'S256',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.text).toContain('Invalid redirect_uri');
+  });
+
   it('redirects the default PKCE authorize request to frontend with a signed authRequestId', async () => {
     const app = buildApp(createDeviceCodesStore(), {
       stub: { exchange: jest.fn(), exchangeBySession: jest.fn() },

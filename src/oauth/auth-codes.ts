@@ -106,13 +106,25 @@ export function isValidRedirectUri(uri: string): boolean {
     return false;
   }
   if (parsed.protocol === 'https:') {
-    return parsed.origin === 'https://chatgpt.com' && (
-      parsed.pathname === '/connector_platform_oauth_redirect' ||
-      /^\/connector\/oauth\/[A-Za-z0-9_-]+$/.test(parsed.pathname)
-    ) && !parsed.username && !parsed.password;
+    const isChatGptCallback =
+      parsed.origin === 'https://chatgpt.com' &&
+      (parsed.pathname === '/connector_platform_oauth_redirect' ||
+        /^\/connector\/oauth\/[A-Za-z0-9_-]+$/.test(parsed.pathname));
+    const isGeminiConnectedAppCallback =
+      parsed.origin === 'https://oauth-redirect.googleusercontent.com' &&
+      /^\/r\/user_bound_custom-mcp-[A-Za-z0-9_-]+$/.test(parsed.pathname) &&
+      parsed.search.length === 0 &&
+      parsed.hash.length === 0;
+    return (
+      (isChatGptCallback || isGeminiConnectedAppCallback) &&
+      !parsed.username &&
+      !parsed.password
+    );
   }
   if (parsed.protocol !== 'http:') return false;
-  const host = parsed.hostname.toLowerCase();
+  // WHATWG URL.hostname includes brackets for IPv6 literals ("[::1]").
+  // Normalize those brackets before checking the RFC 8252 loopback allowlist.
+  const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1') return false;
   if (parsed.username || parsed.password) return false;
   return true;
