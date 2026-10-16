@@ -1,7 +1,7 @@
 // In-process store for OAuth 2.0 authorization codes (RFC 6749 §4.1.2).
 //
-// Used by the authorization_code + PKCE flow that strict MCP clients
-// (Cursor) drive. Codes are short-lived (5 min default), one-shot, and
+// Used by authorization_code + PKCE MCP clients. Codes are short-lived
+// (5 min default), one-shot, and
 // bound to: the user that approved, the client_id, the redirect_uri,
 // and the PKCE code_challenge.
 

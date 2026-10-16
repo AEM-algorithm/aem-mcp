@@ -31,24 +31,24 @@ function appWith(overrides: Partial<ReturnType<typeof DEFAULT_DEPS>> = {}): expr
 }
 
 describe('POST /register', () => {
-  it('returns a dynamic client registration response for Cursor', async () => {
+  it('returns client-neutral dynamic registration metadata for any OAuth client', async () => {
     const res = await request(appWith())
       .post('/register')
       .send({
-        client_name: 'Cursor',
+        client_name: 'Gemini CLI',
         redirect_uris: ['http://localhost:43123/callback'],
       });
 
     expect(res.status).toBe(201);
     expect(res.headers['content-type']).toMatch(/application\/json/);
     expect(res.body).toMatchObject({
-      client_name: 'Cursor',
+      client_name: 'Gemini CLI',
       redirect_uris: ['http://localhost:43123/callback'],
       token_endpoint_auth_method: 'none',
       grant_types: expect.arrayContaining(['authorization_code']),
       response_types: ['code'],
     });
-    expect(res.body.client_id).toMatch(/^cursor-/);
+    expect(res.body.client_id).toMatch(/^mcp-/);
   });
 });
 

@@ -1,5 +1,7 @@
 # Standards — Phase 4 (mcp-default-frontend-login)
 
+> The original v2 inline conventions below are historical where they conflict with Phase 4 Plan v4. Current contract: signed mcp_state and exchange JWT contain exactly one selector (deviceCode or authRequestId); PKCE callback redeems only the MCP-stored request parameters; frontend uses the callback URI returned from verified state; inline form uses ?bridge=0.
+
 This spec references the standards catalog at agent-os/standards/index.yml.
 Topics applied (in order of relevance):
 
@@ -29,9 +31,9 @@ Topics applied (in order of relevance):
 
 ## business
 
-- `agent-pairing-flow` — external agents (Claude Code, Cursor strict,
-  ChatGPT, Codex) pair via aem-mcp. Cursor strict is exempt from
-  Phase 4 (kept on existing bridge). Other agents use the React app.
+- `agent-pairing-flow` — external agents (Claude Code, Cursor, ChatGPT,
+  Codex) pair via aem-mcp. Device and PKCE authorization use the React
+  app bridge; PKCE validation and token redemption remain unchanged.
 - `cross-repo-spec-mirror` — date-slug must match between aem-mcp and
   aem-frontend spec directories for cross-repo PRs.
 

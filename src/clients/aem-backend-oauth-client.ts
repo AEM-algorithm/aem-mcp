@@ -24,6 +24,8 @@ import { BackendError } from '../errors/backend-error';
 export const AemBackendOAuthErrorCode = {
   InvalidCredentials: 'invalidCredentials',
   TwoFactorRequired: 'twoFactorRequired',
+  MissingSession: 'missingSession',
+  InvalidSession: 'invalidSession',
 } as const;
 
 export type AemBackendOAuthErrorCode =
@@ -56,11 +58,30 @@ export type ExchangeResponse = {
 
 export type AemBackendOAuthClient = {
   exchange: (req: ExchangeRequest) => Promise<ExchangeResponse>;
+  /**
+   * Exchange an existing aem-backend session cookie directly for an
+   * exchangeCode, bypassing email/password login. Used by the GET
+   * /oauth/authorize handler to auto-approve when the browser already
+   * holds a Journaler session cookie.
+   *
+   * @param cookieHeader  Full `Cookie` header value, e.g. `token=abc123`
+   * @returns             Promise resolving to { exchangeCode }
+   * @throws AemBackendOAuthError with code `missingSession`  — no session cookie present
+   * @throws AemBackendOAuthError with code `invalidSession`  — cookie invalid or expired
+   * @throws BackendError                                             — backend unreachable or 429
+   */
+  exchangeBySession: (cookieHeader: string) => Promise<ExchangeResponse>;
 };
 
 export function createAemBackendOAuthClient(env: Env): AemBackendOAuthClient {
   const http: AxiosInstance = axios.create({
     baseURL: env.MCP_BACKEND_OAUTH_EXCHANGE_URL,
+    timeout: 15_000,
+  });
+
+  // Separate client for session-exchange so baseURL is independent.
+  const bySessionHttp: AxiosInstance = axios.create({
+    baseURL: env.MCP_BACKEND_OAUTH_EXCHANGE_BY_SESSION_URL,
     timeout: 15_000,
   });
 
@@ -128,6 +149,74 @@ export function createAemBackendOAuthClient(env: Env): AemBackendOAuthClient {
           throw error;
         }
         throw new BackendError('Failed to reach aem-backend OAuth exchange', 502);
+      }
+    },
+
+    async exchangeBySession(cookieHeader: string): Promise<ExchangeResponse> {
+      try {
+        const response = await bySessionHttp.post(
+          '',
+          {},
+          {
+            validateStatus: () => true,
+            headers: {
+              'content-type': 'application/json',
+              // Forward the session cookie as-is so aem-backend can
+              // validate the existing session without us needing to
+              // parse or re-sign anything.
+              cookie: cookieHeader,
+            },
+          },
+        );
+
+        const envelope = response.data as {
+          status?: unknown;
+          data?: { exchangeCode?: unknown };
+          message?: unknown;
+          errorCode?: unknown;
+        };
+
+        if (response.status === 200) {
+          const inner = envelope?.data;
+          if (typeof inner?.exchangeCode === 'string') {
+            return { exchangeCode: inner.exchangeCode };
+          }
+          throw new BackendError('aem-backend returned malformed exchange-by-session response', 502);
+        }
+
+        if (response.status === 401) {
+          const errCode = envelope?.errorCode;
+          if (errCode === AemBackendOAuthErrorCode.MissingSession) {
+            throw new AemBackendOAuthError(
+              AemBackendOAuthErrorCode.MissingSession,
+              'No session cookie present',
+              401,
+            );
+          }
+          // Covers invalidSession, expiredSession, or any other 401 variant.
+          throw new AemBackendOAuthError(
+            AemBackendOAuthErrorCode.InvalidSession,
+            'Session cookie is invalid or expired',
+            401,
+          );
+        }
+
+        if (response.status === 429) {
+          throw new BackendError(
+            `aem-backend rate-limited during session exchange`,
+            429,
+          );
+        }
+
+        throw new BackendError(
+          `aem-backend exchange-by-session failed with status ${response.status}`,
+          502,
+        );
+      } catch (error) {
+        if (error instanceof AemBackendOAuthError || error instanceof BackendError) {
+          throw error;
+        }
+        throw new BackendError('Failed to reach aem-backend session exchange', 502);
       }
     },
   };

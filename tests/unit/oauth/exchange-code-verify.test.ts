@@ -75,6 +75,36 @@ describe('verifyExchangeCode', () => {
     expect(() => verifyExchangeCode(token, ENV)).toThrow(ExchangeCodeError);
   });
 
+  it('rejects a non-string or empty deviceCode binding claim', () => {
+    const token = sign({ sub: '42', jti: 'j-1', aud: 'aem-mcp', deviceCode: 7 });
+    expect(() => verifyExchangeCode(token, ENV)).toThrow(ExchangeCodeError);
+    expect(() => verifyExchangeCode(sign({ sub: '42', jti: 'j-1', aud: 'aem-mcp', deviceCode: '' }), ENV))
+      .toThrow(ExchangeCodeError);
+  });
+
+  it('returns a PKCE authRequestId selector and rejects conflicting selectors', () => {
+    const token = sign({
+      sub: '42',
+      jti: 'j-pkce',
+      aud: 'aem-mcp',
+      authRequestId: 'auth-request-1',
+    });
+    expect(verifyExchangeCode(token, ENV)).toMatchObject({
+      userId: 42,
+      jti: 'j-pkce',
+      authRequestId: 'auth-request-1',
+    });
+
+    const conflicting = sign({
+      sub: '42',
+      jti: 'j-both',
+      aud: 'aem-mcp',
+      deviceCode: 'device-1',
+      authRequestId: 'auth-request-1',
+    });
+    expect(() => verifyExchangeCode(conflicting, ENV)).toThrow(ExchangeCodeError);
+  });
+
   it('rejects a non-JWT string', () => {
     expect(() => verifyExchangeCode('not-a-jwt', ENV)).toThrow(ExchangeCodeError);
   });

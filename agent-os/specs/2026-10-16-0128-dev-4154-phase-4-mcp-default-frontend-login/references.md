@@ -1,5 +1,7 @@
 # References — Phase 4 (mcp-default-frontend-login) [redrafted 2026-10-16-0128 v2]
 
+> This v2 reference list is retained for history. Its lookup-by-user/time and frontend redirect descriptions are superseded by plan.md Phase 4 Plan v4 and the backend/frontend mirrors with this same date-slug.
+
 ## Prior specs (chronological)
 
 - 2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth — DEV-4154

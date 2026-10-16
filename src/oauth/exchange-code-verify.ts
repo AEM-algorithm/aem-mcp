@@ -4,9 +4,9 @@
 // `POST /api/oauth/exchange` with claims:
 //   { sub: <userId-as-string>, aud: 'aem-mcp', jti: <uuid>, iat, exp }
 //
-// aem-mcp verifies locally with the shared `MCP_OAUTH_SIGNING_KEY` so the
-// user does not need to re-prompt credentials. On success, the caller
-// binds the verified `userId` to a `device_code` (Phase 4 flow).
+// aem-mcp verifies locally with the shared `MCP_OAUTH_SIGNING_KEY`. On
+// success, the caller uses exactly one verified deviceCode or authRequestId
+// selector to finish the pending authorization.
 
 import jwt from 'jsonwebtoken';
 
@@ -28,11 +28,17 @@ export type ExchangeCodeClaims = {
   jti: string;
   iat: number;
   exp: number;
+  /** Present only for session-bound frontend agent login. */
+  deviceCode?: string;
+  /** Present only for session-bound authorization-code + PKCE login. */
+  authRequestId?: string;
 };
 
 export type VerifiedExchangeCode = {
   userId: number;
   jti: string;
+  deviceCode?: string;
+  authRequestId?: string;
 };
 
 export function verifyExchangeCode(token: string, env: Env): VerifiedExchangeCode {
@@ -52,12 +58,26 @@ export function verifyExchangeCode(token: string, env: Env): VerifiedExchangeCod
   const sub = decoded.sub;
   const aud = decoded.aud;
   const jti = decoded.jti;
-  if (typeof sub !== 'string' || aud !== 'aem-mcp' || typeof jti !== 'string') {
+  const deviceCode = decoded.deviceCode;
+  const authRequestId = decoded.authRequestId;
+  if (
+    typeof sub !== 'string' ||
+    aud !== 'aem-mcp' ||
+    typeof jti !== 'string' ||
+    (deviceCode !== undefined && (typeof deviceCode !== 'string' || deviceCode.length === 0)) ||
+    (authRequestId !== undefined && (typeof authRequestId !== 'string' || authRequestId.length === 0)) ||
+    (typeof deviceCode === 'string' && typeof authRequestId === 'string')
+  ) {
     throw new ExchangeCodeError('wrong_audience', 'exchange code has wrong audience or shape');
   }
   const userId = Number.parseInt(sub, 10);
   if (!Number.isInteger(userId) || userId <= 0) {
     throw new ExchangeCodeError('invalid_token', 'exchange code has invalid subject');
   }
-  return { userId, jti };
+  return {
+    userId,
+    jti,
+    ...(typeof deviceCode === 'string' ? { deviceCode } : {}),
+    ...(typeof authRequestId === 'string' ? { authRequestId } : {}),
+  };
 }

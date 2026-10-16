@@ -1,5 +1,22 @@
 # Agent-Ready Specification — Phase 4 (mcp-default-frontend-login)
 
+> **Superseded:** This v2 draft contains an invalid device lookup and callback flow. The working v3 contract is in plan.md under “Phase 4 Plan v3”; it takes precedence wherever this draft conflicts. Update this shape and its mirrors before implementation is marked ready.
+
+## Phase 4 v3 corrections
+
+- Frontend returns the exchange code to an aem-mcp callback, never directly to the agent's redirect_uri. aem-mcp creates the callback URI from trusted server configuration and includes it in signed mcp_state. aem-backend verifies that state and returns the verified callback URI; frontend must not trust an editable query parameter as its redirect target.
+- Agent-bind exchange JWT must carry the verified deviceCode. aem-mcp must not infer a device from pending rows, user IDs, or timestamps.
+- Frontend binding runs in the successful login path before navigation. A fixed delay after dispatch is not synchronization. Binding errors leave the authenticated user able to retry.
+- Repeated approval succeeds only when the row is already approved for the same user and jti. Other states or bindings remain errors.
+- Use ?bridge=0 for the inline form. Remove MCP_INLINE_FORM_OPT_OUT unless a distinct operator behavior is specified.
+- The default frontend bridge covers both RFC 8628 device authorization and authorization-code + PKCE. The PKCE callback must use the pending request stored by aem-mcp; the frontend never receives or chooses the agent's redirect_uri.
+
+## Superseded v2 shape
+
+Everything below this heading is retained as historical context only. It is not the current implementation contract. Use Phase 4 Plan v3 and the same-date backend/frontend mirrors.
+
+---
+
 ## Identity
 
 - Ticket: DEV-4154, Phase 4
@@ -7,6 +24,7 @@
 - Task tier: High (inherited from parent ticket)
 - Spec version: 2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login
 - Mirror: aem-frontend/agent-os/specs/2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login/
+- Backend mirror: aem-backend/agent-os/specs/2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login/
 - Branches:
   - aem-mcp: `feature/DEV-4154-phase-4-mcp-default-frontend-login` (base: `develop`)
   - aem-frontend: `feature/DEV-4154-phase-4-companion-frontend` (base: `stable`)

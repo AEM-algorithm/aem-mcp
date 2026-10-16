@@ -20,7 +20,8 @@ export type AuditEvent =
   // 6. A token was rejected (revoked, expired, bad audience, etc.).
   | 'oauth.token.rejected'
   // 7. A new public client was registered via /oauth/register.
-  | 'oauth.client.registered';
+  | 'oauth.client.registered'
+  | 'oauth.agent.binding.forwarded';
 
 type BaseFields = {
   ip?: string;
@@ -72,5 +73,8 @@ export const audit = {
   },
   clientRegistered(fields: BaseFields): void {
     emit('oauth.client.registered', fields);
+  },
+  mcpAgentBindingForwarded(fields: Pick<BaseFields, 'userId' | 'jti'>): void {
+    emit('oauth.agent.binding.forwarded', fields);
   },
 };

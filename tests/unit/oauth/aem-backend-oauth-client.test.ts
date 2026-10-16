@@ -66,4 +66,19 @@ describe('aem-backend OAuth exchange client', () => {
   it('exports a usable factory even when URL is unreachable', () => {
     expect(() => createAemBackendOAuthClient(ENV)).not.toThrow();
   });
+
+  // --- exchangeBySession (session-reuse path) ---
+
+  it('exchangeBySession method exists on the client', () => {
+    const client = createAemBackendOAuthClient(ENV);
+    expect(typeof client.exchangeBySession).toBe('function');
+  });
+
+  it('MissingSession error code is exported', () => {
+    expect(AemBackendOAuthErrorCode.MissingSession).toBe('missingSession');
+  });
+
+  it('InvalidSession error code is exported', () => {
+    expect(AemBackendOAuthErrorCode.InvalidSession).toBe('invalidSession');
+  });
 });

@@ -38,6 +38,15 @@ const envSchema = z
       .url()
       .default('http://localhost:3000/api/oauth/exchange'),
 
+    // Session-reuse: exchange an existing aem-backend session cookie
+    // directly for an exchangeCode, bypassing email/password login.
+    // Used by the GET /oauth/authorize handler to auto-approve when
+    // the browser already holds a Journaler session cookie.
+    MCP_BACKEND_OAUTH_EXCHANGE_BY_SESSION_URL: z
+      .string()
+      .url()
+      .default('http://localhost:3000/api/oauth/exchange-by-session'),
+
     // Phase 5 follow-up — aem-backend session bridge. The Bearer path on
     // /mcp calls this to exchange an MCP access_token for a session_token
     // (aem-backend tool API only accepts session cookies). Optional so the
@@ -49,6 +58,40 @@ const envSchema = z
     // metadata endpoints. Required in staging/production deployments where
     // localhost is not reachable by MCP clients.
     PUBLIC_URL: z.string().url().optional(),
+
+    // Optional aem-frontend base URL. When set, the device-authorization
+    // page renders "Forgot Password" and "Sign Up" links that point at
+    // the Journaler web app (default to a relative path when unset, so
+    // the link row is hidden — see getFrontendBaseUrl).
+    MCP_FRONTEND_URL: z
+      .string()
+      .url()
+      .optional()
+      .refine((value) => {
+        if (!value) return true;
+        try {
+          const url = new URL(value);
+          return (
+            ['http:', 'https:'].includes(url.protocol) &&
+            !url.username &&
+            !url.password &&
+            url.pathname === '/' &&
+            !url.search &&
+            !url.hash
+          );
+        } catch {
+          return false;
+        }
+      }, 'MCP_FRONTEND_URL must be an http(s) base URL without credentials, path, query, or fragment'),
+
+    // Phase 6 — shared HMAC secret for the mcp_state JWT that we sign
+    // and aem-backend verifies on POST /api/oauth/exchange/agent.
+    // This is the "login via aem-frontend" bridge: we sign a short-lived
+    // JWT carrying the deviceCode, then 302 to the frontend login page
+    // with ?mcp_state=… so the user can re-use their existing session.
+    // Required to be >= 32 bytes; the same value MUST be configured on
+    // the backend. Falls back to the dev value below for non-prod.
+    MCP_JWT_SECRET: z.string().optional(),
 
     // Optional list of external Streamable HTTP MCP servers to proxy.
     MCP_EXTERNAL_SERVERS: z.string().optional(),
@@ -65,6 +108,12 @@ const envSchema = z
     // dev value that satisfies the min-length check. In production, the
     // operator MUST set it explicitly (RFC 8628 + D2: shared HMAC secret).
     const isProd = data.NODE_ENV === 'production';
+    if (isProd && !data.MCP_FRONTEND_URL) {
+      throw new Error('Invalid environment: MCP_FRONTEND_URL is required in production');
+    }
+    if (isProd && !data.PUBLIC_URL) {
+      throw new Error('Invalid environment: PUBLIC_URL is required in production');
+    }
     const devSigningKey = '0'.repeat(MIN_SIGNING_KEY_BYTES);
     const signingKey = data.MCP_OAUTH_SIGNING_KEY ?? (isProd ? undefined : devSigningKey);
 
@@ -81,10 +130,19 @@ const envSchema = z
       );
     }
 
+    // MCP_JWT_SECRET: dev fallback to the same "1234" we use elsewhere,
+    // prod must set it explicitly. (This is the aem-mcp side of the
+    // /api/oauth/exchange/agent JWT verification.)
+    const mcpJwtSecret = data.MCP_JWT_SECRET ?? (isProd ? undefined : DEV_JWT_SECRET);
+    if (!mcpJwtSecret) {
+      throw new Error('Invalid environment: MCP_JWT_SECRET is required in production');
+    }
+
     return {
       ...data,
       JWT_SECRET: jwtSecret,
       MCP_OAUTH_SIGNING_KEY: signingKey,
+      MCP_JWT_SECRET: mcpJwtSecret,
     };
   });
 

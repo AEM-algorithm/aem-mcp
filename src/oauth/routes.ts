@@ -277,7 +277,7 @@ export function createOAuthRouter(deps: OAuthRouterDeps): Router {
   // ---- POST /token and /oauth/token ----
   // Supports two grant types:
   //   - device_code (RFC 8628): legacy Claude Code flow
-  //   - authorization_code (RFC 6749 §4.1.3): Cursor flow, with PKCE
+  //   - authorization_code (RFC 6749 §4.1.3): MCP clients using PKCE
   router.post(
     ['/token', '/oauth/token'],
     gateEnabled(deps),
@@ -420,18 +420,18 @@ export function createOAuthRouter(deps: OAuthRouterDeps): Router {
     gateEnabled(deps),
     (req: Request, res: Response): void => {
       const body = parseBody(req);
-      // Cursor sends a JSON object with redirect_uris and client_name.
+      // OAuth clients send a JSON object with redirect_uris and client_name.
       // Redirects are validated when /oauth/authorize is called.
       const requestedClientName =
-        typeof body.client_name === 'string' ? body.client_name : 'cursor-mcp-client';
+        typeof body.client_name === 'string' ? body.client_name : 'mcp-client';
       const redirectUris = Array.isArray(body.redirect_uris)
         ? body.redirect_uris.filter((uri): uri is string => typeof uri === 'string')
         : [];
-      // Generate a stable, recognizable client_id. The store is in-process
+      // Generate a unique, recognizable client_id. The store is in-process
       // (no per-client secret here); pairings record the actual binding
       // when /oauth/token exchanges a device_code.
       const issuedAt = new Date().toISOString();
-      const clientId = `cursor-${randomBytes(12).toString('base64url')}`;
+      const clientId = `mcp-${randomBytes(12).toString('base64url')}`;
       audit.clientRegistered({
         clientId,
         clientName: requestedClientName,
@@ -445,8 +445,8 @@ export function createOAuthRouter(deps: OAuthRouterDeps): Router {
         client_id_issued_at: Math.floor(Date.parse(issuedAt) / 1000),
         client_name: requestedClientName,
         // RFC 7591 §3.2.2: redirect_uris is required for authorization_code.
-        // Cursor supplies its loopback redirect URI in the registration
-        // request; return the registered values in the response.
+        // The client supplies its redirect URI in the registration request;
+        // return the registered values in the response.
         redirect_uris: redirectUris,
         // Public client: no secret; PKCE protects authorization-code grants.
         token_endpoint_auth_method: 'none',

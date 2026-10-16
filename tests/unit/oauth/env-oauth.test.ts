@@ -27,13 +27,20 @@ describe('loadEnv — OAuth foundation (Phase 3)', () => {
         NODE_ENV: 'production',
         JWT_SECRET: 'prod-secret',
         MCP_OAUTH_SIGNING_KEY: 'short',
+        MCP_FRONTEND_URL: 'https://app.example.com',
+        PUBLIC_URL: 'https://mcp.example.com',
       }),
     ).toThrow(/MCP_OAUTH_SIGNING_KEY must be at least 32 bytes/);
   });
 
   it('requires MCP_OAUTH_SIGNING_KEY in production', () => {
     expect(() =>
-      loadEnv({ NODE_ENV: 'production', JWT_SECRET: 'prod-secret' }),
+      loadEnv({
+        NODE_ENV: 'production',
+        JWT_SECRET: 'prod-secret',
+        MCP_FRONTEND_URL: 'https://app.example.com',
+        PUBLIC_URL: 'https://mcp.example.com',
+      }),
     ).toThrow(/MCP_OAUTH_SIGNING_KEY is required in production/);
   });
 

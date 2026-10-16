@@ -12,10 +12,12 @@ the authorization response and token to the resource URL.
 1. A compatible client discovers the OAuth endpoints from the server
    metadata. Clients that use device authorization start by calling
    `POST /oauth/device`.
-2. The server returns a `device_code` and a short, human-readable
-   `user_code` (e.g. `ABCD-EFGH`) plus a `verification_uri`.
+2. For device authorization, the server returns a `device_code` and a short,
+   human-readable `user_code` (e.g. `ABCD-EFGH`) plus a `verification_uri`.
 3. The user opens `verification_uri` in a browser, types the `user_code`,
-   and signs in with their AEM account.
+   and signs in through the AEM frontend. The browser returns to aem-mcp's
+   signed device-binding callback and shows “Device paired”. Operators can
+   select the inline form with `?bridge=0` for local troubleshooting.
 4. For device flow, the agent polls `POST /oauth/token` with the `device_code`. The
    endpoint returns `authorization_pending` until the user approves, then
    a Bearer access token (`access_token`).
@@ -42,6 +44,7 @@ your operator assigned (e.g. `https://mcp.aem-algorithm.com`).
 | ChatGPT | `<base>` | See below |
 | Codex (CLI) | `<base>` | See below |
 | Cursor | `<base>` | See below |
+| Gemini CLI | `<base>` | See below |
 
 ---
 
@@ -116,6 +119,32 @@ Cursor's MCP client supports custom servers with OAuth.
 
 4. Save and restart Cursor. On first invocation Cursor will display the
    user_code and verification_uri.
+
+---
+
+### Gemini CLI
+
+Gemini CLI supports remote MCP over Streamable HTTP and can discover OAuth
+metadata and register a public client automatically. Add the server URL to
+`~/.gemini/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "aem-journaler": {
+      "httpUrl": "https://mcp.aem-algorithm.com/mcp"
+    }
+  }
+}
+```
+
+Then run Gemini CLI and authenticate when prompted (or use `/mcp auth
+aem-journaler`). Gemini CLI uses authorization-code + PKCE with a local
+loopback callback. Complete Journaler login in the browser; the callback
+returns to Gemini CLI. This requires a local browser and the CLI running on
+the same machine as its callback listener. Gemini web/app custom connectors
+are a separate product path and may require the Gemini Connected Apps
+feature to be available for your account.
 
 ---
 
