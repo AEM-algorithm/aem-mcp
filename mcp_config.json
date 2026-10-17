@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "aem-journaler": {
+      "url": "https://mcp.aem-algorithm.com/mcp",
+      "type": "http"
+    }
+  }
+}

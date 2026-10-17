@@ -1,0 +1,3 @@
+prompt = """
+Please check the current AEM Journaler account overview, active company, and subscription quota limits using the aem-journaler MCP tools.
+"""
