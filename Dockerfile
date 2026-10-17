@@ -54,6 +54,13 @@ USER nodejs
 
 EXPOSE 3000
 
+# VOLUME for OAuth persistence (device-codes, pairings, revocation) backup
+# file. The /app/data path is created below; operators should mount a
+# host directory to this path (e.g. `-v /srv/aem-mcp/data:/app/data`) so
+# the in-process state survives container restarts.
+RUN mkdir -p /app/data && chown -R nodejs:nodejs /app/data
+VOLUME ["/app/data"]
+
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://127.0.0.1:${PORT:-3000}/health >/dev/null || exit 1
 

@@ -18,12 +18,14 @@ import type { Env } from '../../src/config/env';
 
 const TEST_PORT = 0; // ephemeral — let the OS pick a free port
 const TEST_JWT_SECRET = 'e2e-smoke-secret';
+const TEST_MCP_OAUTH_SIGNING_KEY = 'm'.repeat(32);
 
 function makeTestEnv(): Env {
   return loadEnv({
     NODE_ENV: 'test',
     PORT: String(TEST_PORT),
     JWT_SECRET: TEST_JWT_SECRET,
+    MCP_OAUTH_SIGNING_KEY: TEST_MCP_OAUTH_SIGNING_KEY,
     AEM_BACKEND_URL: 'http://127.0.0.1:1', // never reached in this test
   });
 }
@@ -86,14 +88,60 @@ describe('e2e: Streamable HTTP MCP transport', () => {
     expect(res.body).toHaveProperty('error');
   });
 
+  it('GET /mcp without auth returns 401 instead of an Express 404', async () => {
+    const res = await agent.get('/mcp').set('Accept', 'text/event-stream');
+
+    expect(res.status).toBe(401);
+    expect(res.body).toHaveProperty('error');
+  });
+
+  it('GET /mcp with a valid session opens the standalone SSE stream', async () => {
+    const token = signTestToken({ id: 42, email: 'e2e@example.com' });
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Test server is not listening on a TCP port');
+    }
+
+    const response = await new Promise<{ statusCode: number | undefined; contentType: string | undefined }>(
+      (resolve, reject) => {
+        const req = http.get(
+          {
+            host: '127.0.0.1',
+            port: address.port,
+            path: '/mcp',
+            headers: {
+              Accept: 'text/event-stream',
+              Cookie: `token=${token}`,
+            },
+          },
+          (res) => {
+            const result = {
+              statusCode: res.statusCode,
+              contentType: res.headers['content-type'],
+            };
+            res.destroy(); // The standalone SSE stream is intentionally long-lived.
+            resolve(result);
+          },
+        );
+        req.setTimeout(3_000, () => req.destroy(new Error('Timed out waiting for SSE headers')));
+        req.once('error', reject);
+      },
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.contentType).toMatch(/^text\/event-stream/);
+  });
+
   it('POST /mcp with valid JWT completes initialize handshake', async () => {
     const token = signTestToken({ id: 42, email: 'e2e@example.com' });
 
+    // Phase 5: Bearer is reserved for MCP access tokens (OAuth flow).
+    // Browser-session users (and the existing e2e test) use the cookie path.
     const res = await agent
       .post('/mcp')
       .set('Accept', 'application/json, text/event-stream')
       .set('Content-Type', 'application/json')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', `token=${token}`)
       .send({
         jsonrpc: '2.0',
         id: 1,
@@ -113,6 +161,42 @@ describe('e2e: Streamable HTTP MCP transport', () => {
     const text = typeof body === 'string' ? body : JSON.stringify(body);
     expect(text).toMatch(/"serverInfo"\s*:\s*\{[^}]*"name"\s*:\s*"aem-mcp"/);
     expect(text).toMatch(/"protocolVersion"\s*:\s*"2024-11-05"/);
+    // DEV-XXXX: aem-mcp MCP server info exposes the AEM Algorithm logo as
+    // its icon so MCP clients (Cursor, Claude Code, etc.) can render it in
+    // their connection UI. The URL must be served over HTTPS and the mime
+    // type must match what the asset actually returns.
+    expect(text).toMatch(
+      /"icons"\s*:\s*\[\s*\{[^}]*"src"\s*:\s*"https:\/\/media\.licdn\.com\/dms\/image\/v2\/D560BAQEN6iBYItMw-Q\/company-logo_200_200\/B56ZelY3yyGQAM-\/0\/1750826450741\/aem_algorithm_logo[^"]*"[^}]*"mimeType"\s*:\s*"image\/jpeg"[^}]*\}\s*\]/,
+    );
+  });
+
+  it('POST /mcp initializes with an OAuth access token before a session bridge is configured', async () => {
+    const token = jwt.sign(
+      { sub: '42', jti: 'oauth-initialize', aud: 'aem-mcp', scope: 'aem-mcp:read' },
+      TEST_MCP_OAUTH_SIGNING_KEY,
+      { expiresIn: '60s' },
+    );
+
+    const res = await agent
+      .post('/mcp')
+      .set('Accept', 'application/json, text/event-stream')
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2024-11-05',
+          capabilities: {},
+          clientInfo: { name: 'cursor-oauth-smoke', version: '0.0.0' },
+        },
+    });
+
+    expect(res.status).toBe(200);
+    const body = res.body && Object.keys(res.body).length > 0 ? res.body : res.text;
+    const text = typeof body === 'string' ? body : JSON.stringify(body);
+    expect(text).toContain('"serverInfo"');
   });
 
   it('POST /mcp with invalid JWT returns 401', async () => {

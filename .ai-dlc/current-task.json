@@ -2,22 +2,38 @@
   "ticket": "DEV-4154",
   "ticketTitle": "Allow for AI agent to connect to Journaler (Claude Code, ChatGPT, Codex, Cursor)",
   "ticketUrl": "https://app.clickup.com/t/14zervyrhwj",
-  "specVersion": "2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth",
-  "specPath": "agent-os/specs/2026-10-08-2353-dev-4154-aem-mcp-external-agent-auth",
-  "branch": "feature/DEV-4154-aem-mcp-external-agent-auth-spec",
+  "specVersion": "2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login",
+  "specPath": "agent-os/specs/2026-10-16-0128-dev-4154-phase-4-mcp-default-frontend-login",
+  "branch": "feature/DEV-4154-phase-4-mcp-default-frontend-login",
+  "phase": "4 (mcp-default-frontend-login)",
+  "phaseName": "Default aem-mcp device authorization to aem-frontend /user/login",
   "pr": {
-    "url": "https://github.com/AEM-algorithm/aem-mcp/pull/5",
-    "number": 5,
-    "base": "develop",
-    "head": "feature/DEV-4154-aem-mcp-external-agent-auth-spec",
-    "state": "merged",
-    "mergedAt": "2026-10-08T17:22:14Z",
-    "mergedBy": "tuanhm2703"
-  },
-  "recoveredPr": {
-    "url": "https://github.com/AEM-algorithm/aem-mcp/pull/6",
-    "number": 6,
-    "purpose": "Recover AI-DLC tooling + test/lint infra that PR #5 inadvertently removed (branch chore/ai-dlc-plugin-and-test-infra was never merged). Blocks Phase 3 /run-ticket execution."
+    "specPr": {
+      "url": "https://github.com/AEM-algorithm/aem-mcp/pull/5",
+      "number": 5,
+      "state": "merged"
+    },
+    "toolingRecoveryPr": {
+      "url": "https://github.com/AEM-algorithm/aem-mcp/pull/6",
+      "number": 6,
+      "state": "merged"
+    },
+    "phase3aSlice1DraftPr": {
+      "url": "https://github.com/AEM-algorithm/aem-mcp/pull/9",
+      "number": 9,
+      "state": "merged",
+      "head": "feature/DEV-4154-phase-3a-oauth-foundation",
+      "base": "develop",
+      "title": "DEV-4154-mcp: Phase 3a slice 1 — OAuth foundation (errors, scopes, pairings test)"
+    },
+    "phase4DraftPr": {
+      "url": "https://github.com/AEM-algorithm/aem-mcp/pull/TBD",
+      "number": null,
+      "state": "draft",
+      "head": "feature/DEV-4154-phase-4-mcp-default-frontend-login",
+      "base": "develop",
+      "title": "DEV-4154-mcp: Phase 4 — defaults device authorization to aem-frontend /user/login"
+    }
   },
   "taskTier": "High",
   "reviewers": [
@@ -25,13 +41,91 @@
     "tuan-hoang"
   ],
   "owner": "agent (Cursor Assistant, AI-DLC)",
-  "status": "spec-merged-blocked-tooling-recovery-in-review",
+  "status": "processing",
+  "phase4Execution": {
+    "specRevision": "v4",
+    "startedAt": "2026-10-16T14:08:10+07:00",
+    "taskTier": "High",
+    "owner": "agent",
+    "reviewers": [
+      "henry",
+      "tuan-hoang"
+    ],
+    "repos": {
+      "aem-mcp": "feature/DEV-4154-phase-4-mcp-default-frontend-login",
+      "aem-backend": "feature/DEV-4154-external-agent-auth",
+      "aem-frontend": "feature/DEV-4154-phase-4-companion-frontend"
+    },
+    "approvedScope": [
+      "Backend agent-bind response returns callback URI from verified mcp_state and exchange JWT carries its verified deviceCode; preserve legacy token callers",
+      "Extend the same signed bridge to PKCE with authRequestId, mint an authorization code from MCP's stored PKCE request, and return to its validated redirect_uri with original state",
+      "MCP callback approves exact device and is idempotent only for identical userId and jti binding",
+      "Frontend binds after successful login and before navigation, preserves mcp_state through 2FA, and uses backend-returned callback URI",
+      "MCP device and PKCE authorization default to frontend bridge with ?bridge=0 inline fallback; PKCE validation and token redemption remain unchanged"
+    ],
+    "requiredChecks": {
+      "aem-backend": [
+        "npm test",
+        "npm run tsc",
+        "npm run lint",
+        "npm run build",
+        "focused OAuth integration tests"
+      ],
+      "aem-mcp": [
+        "npm run test:unit",
+        "npm run test:e2e",
+        "npm run build",
+        "npm run lint",
+        "npm run security:audit",
+        "npm run test:coverage"
+      ],
+      "aem-frontend": [
+        "npm test",
+        "npm run build",
+        "npm run lint",
+        "manual browser E2E"
+      ]
+    },
+    "evidence": {
+      "aem-backend": {
+        "oauthUnit": "43/43 focused OAuth service, use-case, and controller tests passed with the PKCE binding selector.",
+        "sourceTypecheck": "A source-only compile with the repository @src path map reported 2 existing TS2339 errors in TaxCalculatorJobsController.ts and TaxCalculatorJobsApiKeyMiddleware.ts; no errors in the Phase 4 changed backend source files.",
+        "fullTypecheckAndBuild": "Blocked by 7 existing TS2339 errors in tests/unit/transactionUseCase/csvExportFlexibility.test.ts for missing CsvExportTransactionColumn enum members.",
+        "fullUnit": "Interrupted after the pre-existing functional test tests/functional/transactionControllerGet.test.ts failed with ECONNRESET after 367 seconds; relevant OAuth tests passed.",
+        "lint": "No lint script or ESLint configuration is present in this repository."
+      },
+      "aem-mcp": {
+        "unit": "242/242 passed across 30 suites, including authorization-code + PKCE frontend bridge.",
+        "e2e": "20/20 passed.",
+        "build": "Passed.",
+        "lint": "Passed.",
+        "security": "npm run security:audit passed with 0 vulnerabilities.",
+        "targetCoverage": "agent-bind-callback.ts and exchange-code-verify.ts: 100% statements, branches, functions, and lines.",
+        "fullCoverage": "Failed existing repository-wide per-file thresholds (including auth-codes.ts, login-exchange-handler.ts, frontend-login-handler.ts, resource.ts, provider-buttons.ts, and session-bridge.ts). All 242 unit tests passed. Thresholds were not weakened."
+      },
+      "aem-frontend": {
+        "mcpAgentService": "9/9 passed.",
+        "loginModel": "4/4 passed, including binding order, retry failure, no-state compatibility, and 2FA state preservation.",
+        "targetLint": "Passed for all changed JavaScript/JSX files.",
+        "build": "Passed with NODE_OPTIONS=--openssl-legacy-provider for the existing Webpack 4/Node 25 OpenSSL incompatibility.",
+        "fullLint": "Failed with 51 pre-existing errors across unrelated repository files; changed files passed targeted ESLint.",
+        "tsc": "npm run tsc is not configured: the repository has no tsconfig.json and the script invokes bare tsc.",
+        "fullUnit": "725 passed, 7 failed across 5 unrelated suites."
+      },
+      "manualE2e": "Not run against all three live services or Cursor; browser-based verification still requires the user’s authenticated local browser session."
+    },
+    "notes": "Resuming Phase 4 under spec v4 to include Cursor authorization-code + PKCE UI bridging. Preserve existing dirty changes and unrelated session-reuse work. Device and PKCE grants keep their existing token semantics; repository-wide baseline verification failures remain open."
+  },
   "startTime": "2026-10-08T23:57:00+07:00",
-  "retryCount": 0,
+  "phase3aStartTime": "2026-10-09T10:43:00+07:00",
+  "phase3aSlice1CompletedTime": "2026-10-09T11:36:00+07:00",
+  "phase3aSlice2CompletedTime": "2026-10-09T11:42:00+07:00",
+  "phase3bCompletedTime": "2026-10-09T12:10:00+07:00",
+  "retryCount": 1,
   "limits": {
     "maxRuntimeMinutes": 45,
     "maxRetries": 3,
-    "maxFilesChanged": 20
+    "maxFilesChanged": 1000
   },
   "requiredChecks": {
     "build": "npm run build",
@@ -42,28 +136,68 @@
     "security": "npm run security:audit",
     "coverage": "npm run test:coverage"
   },
-  "approvedScope": {
-    "phases": [3, 4, 5, 6, 7, 8, 9, 10],
-    "prStrategy": "1 PR per phase, 8 PRs total",
-    "outOfScope": [
-      "multi-pod scaling (in-process state only)",
-      "RS256 / JWKS (HS256 + shared secret per D2)",
-      "per-tool scopes (only aem-mcp:read per D4)",
-      "refresh tokens (1h access, re-pair on expiry per D5)",
-      "production deployment",
-      "ChatGPT App Store submission"
+  "phaseApprovedScope": {
+    "phase": "3a+3b",
+    "filesLanded": [
+      "src/oauth/errors.ts",
+      "src/oauth/scopes.ts",
+      "src/oauth/pairings.ts",
+      "src/oauth/device-codes.ts",
+      "src/oauth/revocation.ts",
+      "src/oauth/issuer.ts",
+      "src/oauth/rate-limit.ts",
+      "src/oauth/routes.ts",
+      "src/config/env.ts",
+      "src/server.ts",
+      "tests/unit/oauth/errors.test.ts",
+      "tests/unit/oauth/scopes.test.ts",
+      "tests/unit/oauth/pairings.test.ts",
+      "tests/unit/oauth/device-codes.test.ts",
+      "tests/unit/oauth/revocation.test.ts",
+      "tests/unit/oauth/env-oauth.test.ts",
+      "tests/unit/oauth/issuer.test.ts",
+      "tests/unit/oauth/rate-limit.test.ts",
+      "tests/unit/oauth/routes.test.ts",
+      "tests/unit/load-env.test.ts",
+      "tests/unit/verify-session-token.test.ts"
+    ],
+    "filesPending": [
+      "src/oauth/agent-bind-callback.ts (new)",
+      "src/oauth/routes.ts (modified — register /oauth/authorize/agent-callback; rewire /oauth/activate and device-flow /oauth/authorize to call handleRedirectToFrontend when ?bridge=0 is absent)",
+      "src/oauth/login-exchange-handler.ts (modified — call handleRedirectToFrontend as default, render inline form when ?bridge=0)",
+      "src/oauth/views/device-authorization-page.ts (modified — add @deprecated JSDoc)",
+      "src/config/env.ts (modified — add MCP_INLINE_FORM_OPT_OUT env)",
+      "src/utils/audit.ts (extended — add mcpAgentBindingForwarded)",
+      "tests/unit/oauth/agent-bind-callback.test.ts (new)",
+      "tests/unit/oauth/login-exchange-handler.test.ts (extended)"
+    ],
+    "outOfScope3a": [],
+    "outOfScope3b": [
+      "src/oauth/views/ HTML form (defer to Phase 4 — login exchange)",
+      "src/oauth/login-exchange-handler.ts (Phase 4)",
+      "src/oauth/connected-agents-routes.ts (Phase 6)",
+      "src/auth/verify-session-token.ts MCP-access dispatch (Phase 5 — protected path)",
+      "src/auth/revocation-check.ts (Phase 5 — protected path)",
+      "src/clients/aem-backend-oauth-client.ts (Phase 4)"
+    ],
+    "outOfScope4": [
+      "Cursor strict (authorization_code + PKCE) flow — keeps existing bridge",
+      "New aem-backend endpoints — /api/oauth/exchange/agent already shipped",
+      "Removing the inline form — preserved behind ?bridge=0 for tests and opt-in",
+      "Provider-specific UI — Google, Auth0, MetaMask, Xverse flows unchanged",
+      "Refresh tokens, revocation flows"
     ]
   },
   "sandbox": {
     "isolated": true,
-    "branchCreated": "feature/DEV-4154-aem-mcp-external-agent-auth-spec",
+    "branchCreated": "feature/DEV-4154-phase-3a-oauth-foundation",
     "workingTreeClean": true,
     "protectedPathApprovals": [
       {
         "path": "**/auth/**",
         "approver": "henry",
         "approvedAt": null,
-        "note": "Phase 5 will modify src/auth/verify-session-token.ts; approval recorded when Phase 5 PR opens."
+        "note": "Phase 3a/3b do not modify src/auth/**. Phase 5 will. Approval will be requested when Phase 5 PR opens."
       }
     ]
   },
@@ -77,7 +211,8 @@
     "aem-backend changes POST /api/oauth/exchange response shape",
     "Tuan Hoang unavailable for 48h",
     "Test weakening requested",
-    "Phase 3 reveals need for RS256/JWKS"
+    "Phase 3 reveals need for RS256/JWKS",
+    "MCP_FRONTEND_URL not configured in production rollout (Phase 4 hard-require)"
   ],
   "evidence": {
     "localPath": ".ai-dlc/evidence/dev-4154-mcp/",
@@ -88,9 +223,43 @@
       "verification.md",
       "e2e.log"
     ],
-    "currentStatus": "PR #5 (spec) merged 2026-10-08T17:22Z by henry. PR #6 (tooling recovery) opened; awaiting review. Phase 3 implementation will start after PR #6 merges."
+    "phase3aSlice1Status": "Build + lint + 52 unit tests pass (35 existing + 17 new). 1 suite RED (pairings test) by design — its source lands in next batch. PR #9 opened as draft.",
+    "phase3aSlice2Status": "Pairings (source) + device-codes + revocation + their tests landed in commit 41a02c3. Build + lint + 77/77 unit tests pass (35 pre-existing + 42 new). 2 bugs fixed mid-slice (caught by tests, not weakened). 3a complete; ready to begin 3b.",
+    "phase3bStatus": "Issuer (HS256 JWT sign+verify for access token; exchange_code verify), rate-limit (in-memory token bucket per IP+route), routes (4 endpoints with rate-limit, OAUTH_ENABLED gate, RFC 8628 §3.5 error codes), env extension (MCP_OAUTH_SIGNING_KEY ≥32 bytes, OAUTH_*, RATE_LIMIT_*), server wiring. Build + lint + 134/134 unit tests pass. security:audit reports 1 pre-existing critical (hono/node-server) and 4 high transitive — NOT introduced by this PR; recorded as openEscalation ESC-DEV-4154-005 for human triage.",
+    "phase4Status": "Phase 4 spec v4 approved on 2026-10-16. Frontend bridge now supports RFC 8628 device flow and authorization-code + PKCE. Backend returns a verified MCP callback URI and a signed exchange JWT with exactly one deviceCode/authRequestId selector and nonce-derived stable jti. MCP callback either approves the exact device or mints an authorization code from its stored PKCE request and redirects to the validated client URI with state. ?bridge=0 retains the inline form; PKCE validation and redemption semantics stay unchanged."
   },
+  "openEscalations": [],
   "previousEscalations": [
+    {
+      "id": "ESC-DEV-4154-005",
+      "raisedAt": "2026-10-09T12:10:00+07:00",
+      "raisedBy": "agent",
+      "reason": "npm run security:audit reports 1 critical (@hono/node-server <1.19.15) + 4 high (axios, mcp-sdk, qs) vulnerabilities. None are introduced by Phase 3a/3b code — they are pre-existing transitive dependencies. spec requiredChecks.security = npm run security:audit (block on failure).",
+      "agentAction": "Did NOT touch dependencies. Recorded finding; will not bypass the gate.",
+      "henryDecisionNeeded": "Choose one: (A) `npm audit fix` as a separate chore PR (will bump axios, express, @hono/node-server, mcp-sdk), (B) `npm audit fix --force` (may break compat), (C) waive the gate for this PR and re-run after a dedicated dependency-upgrade ticket, (D) investigate root causes and pin overrides individually.",
+      "recommendation": "(A) chore PR. Smallest blast radius; keeps the OAuth PR focused.",
+      "blockingPRs": [
+        9
+      ],
+      "phase": "3b",
+      "resolution": "npm run security:audit rerun on 2026-10-16 completed successfully with found 0 vulnerabilities. Historical blocker cleared; security check remains required for Phase 4.",
+      "resolvedAt": "2026-10-16T14:08:10+07:00"
+    },
+    {
+      "id": "ESC-DEV-4154-004",
+      "raisedAt": "2026-10-09T10:55:00+07:00",
+      "raisedBy": "agent",
+      "reason": "AI-DLC guardrail maxFilesChanged=20 reached mid-Phase-3a. Session-cumulative file counter is hard-capped and does not reset on commit. Originally proposed 3 options: (1) fresh session, (2) raise cap to 40, (3) worktree.",
+      "henryDecision": "raise-cap-to-1000",
+      "henryDecisionTime": "2026-10-09T11:45:00+07:00",
+      "henryDecisionNote": "Henry raised .ai-dlc/config.json limits.maxFilesChanged from 20 to 1000 (audit trail: edit visible in working tree, later landed in commit 41a02c3 along with slice 2 code). Counter 24 now < cap 1000; session unblocked. AI-DLC rules permit raising caps with explicit human owner approval; this decision is logged here and the config diff is committed.",
+      "phase3aExecutionStatus": "COMPLETE. Slice 1 (5 files) + slice 2 (5 files) shipped on feature/DEV-4154-phase-3a-oauth-foundation (commits 1acadf7 + 41a02c3). 77/77 unit tests pass; build + lint clean. Ready to begin Phase 3b.",
+      "resolution": "cap raised to 1000, agent resumed and completed slice 2 in same session. 3a is fully shipped.",
+      "resolvedAt": "2026-10-09T11:45:00+07:00",
+      "blockingPRs": [
+        9
+      ]
+    },
     {
       "id": "ESC-DEV-4154-001",
       "raisedAt": "2026-10-08T23:58:00+07:00",
@@ -103,10 +272,13 @@
       "id": "ESC-DEV-4154-002",
       "raisedAt": "2026-10-09T10:30:00+07:00",
       "raisedBy": "agent",
-      "reason": "Post-merge: spec PR #5 removed all AI-DLC tooling (.claude/, .cursor/, .ai-dlc/config.json, tests/e2e/) because that tooling lived on a parallel branch (chore/ai-dlc-plugin-and-test-infra, 7986250) that was never merged. develop ended up without /run-ticket, lint config, e2e harness, or AI-DLC rules. Phase 3 implementation cannot start in this state.",
-      "resolution": "Cherry-picked 7986250 onto develop as PR #6 (fix/recover-ai-dlc-tooling). Resolved agent-os/standards/index.yml conflict by keeping spec's 3 standards. Local build/lint/unit (35/35) green. PR #6 awaiting review.",
+      "reason": "Post-merge: spec PR #5 removed all AI-DLC tooling (.claude/, .cursor/, .ai-dlc/config.json, tests/e2e/) because that tooling lived on a parallel branch (chore/ai-dlc-plugin-and-test-infra, 7986250) that was never merged.",
+      "resolution": "Cherry-picked 7986250 onto develop as PR #6 (fix/recover-ai-dlc-tooling). Resolved agent-os/standards/index.yml conflict by keeping spec's 3 standards. Local build/lint/unit (35/35) green. PR #6 merged.",
       "resolvedAt": "2026-10-09T10:35:00+07:00"
     }
   ],
-  "nextAction": "Await PR #6 review + merge. Then run /run-ticket for Phase 3 (OAuth core: 4 routes + 3 in-process stores + rate limit). For now, return to Henry with status: spec merged, tooling recovery in review, Phase 3 blocked on PR #6."
+  "nextAction": "STOP before Review/PR. Phase 4 v4 implementation and MCP checks are complete. Required backend/frontend baseline checks still fail for documented unrelated repository issues, frontend full lint/tests have unrelated failures, MCP repository-wide coverage thresholds remain unmet, manual live Cursor E2E and High-tier specialist review remain outstanding. Do not mark green or open PR.",
+  "phase4StartTime": "2026-10-16T01:28:00+07:00",
+  "phase4SpecRedraftedAt": "2026-10-16T01:50:00+07:00",
+  "phase4SpecRedraftReason": "User requested rewrite. Original spec overstated 'always 302'; actual code has opt-in bridge. Redraft aligns with Phase 3b code: 2 default entry points wired to bridge, 1 new callback endpoint, opt-in env flag, inline form preserved behind ?bridge=0."
 }

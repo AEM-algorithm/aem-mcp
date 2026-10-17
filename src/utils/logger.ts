@@ -9,3 +9,8 @@ export function logError(event: string, fields: LogFields = {}): void {
    
   console.error(JSON.stringify({ level: 'error', event, ...fields }));
 }
+
+export function logWarn(event: string, fields: LogFields = {}): void {
+
+  console.warn(JSON.stringify({ level: 'warn', event, ...fields }));
+}
