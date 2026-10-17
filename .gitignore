@@ -8,3 +8,7 @@
 *.log
 coverage/
 .nyc_output/
+
+# AI-DLC:START runtime
+.ai-dlc/runtime/
+# AI-DLC:END runtime

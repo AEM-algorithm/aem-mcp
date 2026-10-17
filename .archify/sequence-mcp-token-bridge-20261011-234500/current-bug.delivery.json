@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "3aa10fd1-4f17-4db1-82a8-6a480b2cf4af",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "/Users/henry/Documents/Github/aem/aem-mcp/.archify/sequence-mcp-token-bridge-20261011-234500/current-bug.candidate.json",
+  "output": "/Users/henry/Documents/Github/aem/aem-mcp/.archify/sequence-mcp-token-bridge-20261011-234500/current-bug.html",
+  "specification": {
+    "sha256": "352b54bbf0161f293eea8b93d9ac7ec9963945a7bba42e7e6df401c26ae53293",
+    "bytes": 4612
+  },
+  "artifact": {
+    "sha256": "ade51c6d64c15f3e4259909c0d44a92b03eee74fd4e82a3a1c8606d543f489ab",
+    "bytes": 761919
+  }
+}

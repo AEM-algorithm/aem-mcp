@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Current (bug) — MCP access token forwarded to aem-backend → 401",
+    "subtitle": "aem-mcp /mcp handler forwards the bare access token; aem-backend rejects it",
+    "output": "current-bug.html",
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    { "id": "agent", "type": "external", "label": "Agent", "sublabel": "Cursor / Claude Code", "icon": "person" },
+    { "id": "mcp", "type": "backend", "label": "aem-mcp", "sublabel": "POST /mcp handler", "icon": "backend" },
+    { "id": "verifyM", "type": "security", "label": "verifyToken", "sublabel": "MCP_OAUTH_SIGNING_KEY", "icon": "security" },
+    { "id": "revoke", "type": "security", "label": "jti store", "sublabel": "in-process map", "icon": "security" },
+    { "id": "backend", "type": "backend", "label": "aem-backend", "sublabel": "tool router", "icon": "backend" },
+    { "id": "verifyB", "type": "security", "label": "session verify", "sublabel": "SESSION_SECRET (1234)", "icon": "security" }
+  ],
+  "segments": [
+    { "from": 160, "to": 290, "label": "MCP call entry" },
+    { "from": 295, "to": 460, "label": "Token verify + jti check" },
+    { "from": 470, "to": 640, "label": "Forward to aem-backend" },
+    { "from": 650, "to": 800, "label": "Backend rejects" }
+  ],
+  "messages": [
+    { "id": "req", "from": "agent", "to": "mcp", "y": 185, "label": "POST /mcp  tools/call get_user_profile", "variant": "default" },
+    { "id": "hdr", "from": "agent", "to": "mcp", "y": 220, "label": "Authorization: Bearer <mcp_access_token>", "variant": "default" },
+    { "id": "verify-call", "from": "mcp", "to": "verifyM", "y": 270, "label": "jwt.verify(MCP_OAUTH_SIGNING_KEY)", "variant": "security" },
+    { "id": "verify-ok", "from": "verifyM", "to": "mcp", "y": 310, "label": "claims ok (sub, aud, jti)", "variant": "return" },
+    { "id": "revoke-check", "from": "mcp", "to": "revoke", "y": 360, "label": "is jti revoked?", "variant": "security" },
+    { "id": "revoke-ok", "from": "revoke", "to": "mcp", "y": 400, "label": "not revoked", "variant": "return" },
+    { "id": "ctx", "from": "mcp", "to": "backend", "y": 450, "label": "BUG: authToken = access_token  (server.ts:213)", "variant": "emphasis" },
+    { "id": "fwd", "from": "mcp", "to": "backend", "y": 500, "label": "GET /mcp/get-user-profile", "variant": "default" },
+    { "id": "cookie", "from": "mcp", "to": "backend", "y": 540, "label": "Cookie: token=<mcp_access_token>", "variant": "emphasis" },
+    { "id": "verifyB-call", "from": "backend", "to": "verifyB", "y": 590, "label": "verify with SESSION_SECRET  (1234)", "variant": "security" },
+    { "id": "verifyB-fail", "from": "verifyB", "to": "backend", "y": 625, "label": "signature mismatch → 401", "variant": "return" },
+    { "id": "reject", "from": "backend", "to": "mcp", "y": 695, "label": "401 Unauthorized", "variant": "return" },
+    { "id": "err", "from": "mcp", "to": "agent", "y": 745, "label": "{\"error\":\"Unauthorized\"}", "variant": "default" }
+  ],
+  "activations": [
+    { "participant": "mcp", "from": 183, "to": 755, "type": "backend" },
+    { "participant": "verifyM", "from": 267, "to": 316, "type": "security" },
+    { "participant": "revoke", "from": 357, "to": 406, "type": "security" },
+    { "participant": "backend", "from": 447, "to": 701, "type": "backend" },
+    { "participant": "verifyB", "from": 587, "to": 631, "type": "security" }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Where it breaks",
+      "items": [
+        "src/server.ts:213 — authToken = access_token (the bare MCP access token is reused downstream)",
+        "src/clients/aem-backend-client.ts — Cookie header is built from that same token",
+        "aem-backend expects a session token signed with SESSION_SECRET, not MCP_OAUTH_SIGNING_KEY"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Why aem-backend rejects",
+      "items": [
+        "Two different HMAC secrets (MCP_OAUTH_SIGNING_KEY vs SESSION_SECRET / JWT_SECRET=1234)",
+        "Two different claim shapes: {sub,aud,jti,scope} vs {id,userEmail,need2FA,...}",
+        "JWT signature verify fails on the backend before any DB lookup"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Scope of impact",
+      "items": [
+        "Every tool call in /mcp returns {\"error\":\"Unauthorized\"}",
+        "Chatbot cookie/session path is unaffected (legacy verifySessionToken path)",
+        "OAuth login flow itself is fine; only downstream forwarding is broken"
+      ]
+    }
+  ]
+}

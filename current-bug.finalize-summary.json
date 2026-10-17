@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "sequence",
+  "quality": "showcase",
+  "specification": {
+    "path": "/Users/henry/Documents/Github/aem/aem-mcp/current-bug.candidate.json"
+  },
+  "artifact": {
+    "path": "/Users/henry/Documents/Github/aem/aem-mcp/current-bug.html"
+  },
+  "gates": {
+    "validate": "fail",
+    "deliver": "not-run",
+    "check": "not-run",
+    "browser-check": "not-run"
+  },
+  "failedStage": "validate",
+  "diagnostics": [
+    {
+      "code": "input/read",
+      "severity": "error",
+      "message": "Input could not be read: ENOENT: no such file or directory, open '/Users/henry/Documents/Github/aem/aem-mcp/current-bug.candidate.json'",
+      "subject": {
+        "input": "/Users/henry/Documents/Github/aem/aem-mcp/current-bug.candidate.json"
+      },
+      "evidence": {
+        "systemCode": "ENOENT",
+        "reason": "ENOENT: no such file or directory, open '/Users/henry/Documents/Github/aem/aem-mcp/current-bug.candidate.json'"
+      },
+      "supportedFixes": [
+        "provide one readable JSON input file"
+      ]
+    }
+  ],
+  "diagnosticSummary": {
+    "total": 1,
+    "shown": 1,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/Users/henry/Documents/Github/aem/aem-mcp/current-bug.finalize.json",
+    "summaryReceipt": "/Users/henry/Documents/Github/aem/aem-mcp/current-bug.finalize-summary.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.0.1",
+    "availableVersion": "3.0.1",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-11T16:45:01.566Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 134,
+  "nextAction": {
+    "action": "edit-in-place",
+    "candidate": "/Users/henry/Documents/Github/aem/aem-mcp/current-bug.candidate.json",
+    "constraint": "Preserve unaffected semantics and geometry; do not replace the whole candidate.",
+    "then": "finalize-once"
+  }
+}

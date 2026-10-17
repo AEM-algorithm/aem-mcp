@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "pluginVersion": "0.2.0",
+  "installedAt": "2026-10-08T16:39:38.912Z",
+  "auditHash": "53841e2b8c51b4cf37bc84d5c4bcbf80befd3553832ea465f42b53aac54c21b2",
+  "repositoryFingerprintBeforeApply": "2ac2a55227cb4bd3c0b55a6e5faccf4efa686a883773325d7e1d6ed24dcaf5a3",
+  "ownedFiles": [
+    "docs/ai-dlc/escalation-template.md",
+    "docs/ai-dlc/qualification.md",
+    "docs/ai-dlc/review-standard.md",
+    "docs/ai-dlc/spec-template.md",
+    "docs/ai-dlc/task-taxonomy.md",
+    "docs/ai-dlc/verification-policy.md",
+    "docs/ai-dlc/working-agreement.md",
+    ".claude/rules/ai-dlc.md",
+    ".claude/skills/run-ticket/SKILL.md",
+    ".cursor/rules/ai-dlc.mdc",
+    ".cursor/skills/run-ticket/SKILL.md",
+    ".claude/settings.json",
+    ".ai-dlc/config.json",
+    ".ai-dlc/evidence/qualification.json",
+    ".ai-dlc/external-actions.md",
+    "CLAUDE.md",
+    ".github/pull_request_template.md",
+    ".gitignore"
+  ],
+  "markers": [
+    "project-rules",
+    "pr-evidence",
+    "runtime"
+  ],
+  "checksums": {
+    "docs/ai-dlc/escalation-template.md": "7ede2d63c34fe739e677732b09002234311d5ce353c5c2e883bcbfe370a74164",
+    "docs/ai-dlc/qualification.md": "89a8740f35bbcf2df0d1b8227ff2fb43070659e798e9ec89b9b00970ca64a71a",
+    "docs/ai-dlc/review-standard.md": "6f29c94ee25335250568643af997c9b0f6a4d15e584a42b644f20bd8477c7542",
+    "docs/ai-dlc/spec-template.md": "10155759705a895d072cf7e03e14f01e5a9f230c5f3b7cb560f18172eca25928",
+    "docs/ai-dlc/task-taxonomy.md": "8bd18b62becb9b0a1e6d8fe6f1576fb4f4de3585a27a5b10434449a161a73ef8",
+    "docs/ai-dlc/verification-policy.md": "3a011a716241c5f5b19d8a9f0659806b62bb77a6be1f196fb9877664de2b9d97",
+    "docs/ai-dlc/working-agreement.md": "977d85678e1762bd667528f04f21ad4dcb0c800d21cac81526ce1af51aa9bbd7",
+    ".claude/rules/ai-dlc.md": "2799ca2eca2191d22016168229d875e4da7062aebc5722d41b1f5fe59254d235",
+    ".claude/skills/run-ticket/SKILL.md": "db0bc1d0fda2a7268c575fa8488404108c0db3898ef9b43b3429aeccb37c3bcd",
+    ".cursor/rules/ai-dlc.mdc": "a420500da9d94e09bef9901550eefd237ea8978e0ed4e7e40bb2eb2851a12964",
+    ".cursor/skills/run-ticket/SKILL.md": "f127bf1f1b9ee7032286f40b72b79eb10460fbe07f911f3e9328d7174942714a",
+    ".claude/settings.json": "55b99593a9cca421c096ebf556a961d934a89830cd6eda682f99afaffbbb7548",
+    ".ai-dlc/config.json": "98a9dc45d8b83f6c40204ac9db6580c684a7144c020b52f20bcb44d6c6edee78",
+    ".ai-dlc/evidence/qualification.json": "79b4486faab2ba2d91f52eaf3a02660e352422eef9a049fa1fee5d46592d8962",
+    ".ai-dlc/external-actions.md": "4ac5516659b9f10bab11f6598a92a464802a5f526796e4a0cda94061bc5918ba",
+    "CLAUDE.md": "c18efe6f28ad3428a02fa3ab3796d43383187fb5e53f1a6e8a955c77281cd41b",
+    ".github/pull_request_template.md": "2b584711012d271cd127bdbc14266fbaab5f734a8b23a95b5f879592410cab35",
+    ".gitignore": "5fe51febbbfb493e5fec5bb6c2525e6f473af4737ee8bd8e8f453ff051a5892c"
+  }
+}

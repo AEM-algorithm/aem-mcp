@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "command": "deliver",
+  "status": "pending",
+  "receiptId": "90c0a5d0-f2f1-4984-9706-0c0947b4946b",
+  "input": "/Users/henry/Documents/Github/aem/aem-mcp/.archify/sequence-mcp-token-bridge-20261011-234500/fixed-bridge.candidate.json",
+  "output": "/Users/henry/Documents/Github/aem/aem-mcp/.archify/sequence-mcp-token-bridge-20261011-234500/fixed-bridge.html"
+}

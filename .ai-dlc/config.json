@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "pluginVersion": "0.2.0",
+  "agentPlatforms": [
+    "claude-code",
+    "cursor"
+  ],
+  "workflowStages": [
+    "Refinement",
+    "Todo",
+    "Processing",
+    "Review",
+    "Testing",
+    "Staging",
+    "Deployment"
+  ],
+  "taskTiers": {
+    "Low": {
+      "reviewers": 0,
+      "autoMergeEligible": true
+    },
+    "Standard": {
+      "reviewers": 1,
+      "autoMergeEligible": false
+    },
+    "High": {
+      "reviewers": 2,
+      "specialistReview": true,
+      "autoMergeEligible": false
+    },
+    "Prohibited": {
+      "autonomousExecution": false,
+      "autoMergeEligible": false
+    }
+  },
+  "protectedPaths": [
+    ".env",
+    ".env.*",
+    "**/secrets/**",
+    "**/auth/**",
+    "**/payment/**",
+    "**/migrations/**"
+  ],
+  "prohibitedCommandPatterns": [
+    "git\\s+push\\s+.*(?:--force|-f)(?:\\s|$)",
+    "git\\s+reset\\s+--hard",
+    "rm\\s+-rf\\s+(?:/|~|\\$HOME)(?:\\s|$)",
+    "(?:kubectl|helm)\\s+.*(?:prod|production)",
+    "(?:terraform|tofu)\\s+(?:apply|destroy)"
+  ],
+  "allowedNetworkDomains": [],
+  "limits": {
+    "maxFilesChanged": 1000,
+    "maxRuntimeMinutes": 45,
+    "maxRetries": 3,
+    "maxEstimatedCostUsd": 25,
+    "exemptPathsFromFileCount": [
+      ".ai-dlc/**",
+      "agent-os/**",
+      "docs/ai-dlc/**"
+    ]
+  },
+  "sandboxRequired": true,
+  "commands": {
+    "build": "npm run build",
+    "lint": "npm run lint",
+    "typecheck": "npm run build",
+    "unit": "npm run test:unit",
+    "integration": "npm run test:unit",
+    "e2e": "npm run test:e2e",
+    "security": "npm run security:audit",
+    "coverage": "npm run test:coverage"
+  },
+  "ci": {
+    "provider": "github-actions",
+    "configurationPaths": [
+      ".github/workflows/ci-cd.yml",
+      ".github/workflows/deploy-develop.yml"
+    ],
+    "requiredChecksByTier": {
+      "Low": [
+        "Unit tests"
+      ],
+      "Standard": [
+        "Unit tests",
+        "build"
+      ],
+      "High": [
+        "Unit tests",
+        "build",
+        "deploy"
+      ],
+      "Prohibited": []
+    }
+  },
+  "qualification": {
+    "minimumWindowDays": 14,
+    "preferredWindowDays": 42,
+    "minimumAgentFirstStories": 5,
+    "minimumEligiblePullRequests": 10,
+    "agentFirstPullRequestPercent": 20,
+    "structuredSpecPercent": 80,
+    "maximumSignificantReworkPercent": 30,
+    "minimumIssueToMergeImprovementPercent": 25
+  }
+}

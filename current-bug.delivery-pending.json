@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "command": "deliver",
+  "status": "pending",
+  "receiptId": "0cd39a92-cd8a-462b-8d4d-2d3a2c86f661",
+  "input": "/Users/henry/Documents/Github/aem/aem-mcp/current-bug.candidate.json",
+  "output": "/Users/henry/Documents/Github/aem/aem-mcp/current-bug.html"
+}
