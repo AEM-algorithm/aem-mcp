@@ -24,3 +24,4 @@ You can query customer data from AEM Journaler via AEM MCP tools (`aem-journaler
 - Do not dump raw JSON.
 - Never output full wallet addresses or secret tokens; truncate addresses in middle segments (e.g., `0x1234...abcd`).
 - Scope all results strictly to the active company context.
+

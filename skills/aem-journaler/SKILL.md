@@ -28,3 +28,4 @@ Expert workflow for querying financial journals, crypto wallets, transactions, a
 - List current rules: Call `list_rules` with `limit: 50`.
 - Filter by direction (`INCOMING`, `OUTGOING`, `BOTH`) or label (`ruleLabelId`).
 - List available labels: Call `list_rule_labels`.
+
