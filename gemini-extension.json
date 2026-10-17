@@ -1,0 +1,13 @@
+{
+  "name": "aem-mcp",
+  "version": "1.0.0",
+  "description": "AEM Journaler MCP extension for Gemini — query financial journals, wallets, rules, transactions, and subscription quotas.",
+  "contextFileName": "GEMINI.md",
+  "mcpServers": {
+    "aem-journaler": {
+      "url": "https://mcp.aem-algorithm.com/mcp",
+      "type": "http"
+    }
+  }
+}
+

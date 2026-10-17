@@ -1,0 +1,4 @@
+prompt = """
+Please list the active wallets and their balances in AEM Journaler using the list_wallets and get_wallet_summary tools. Filter: {{args}}
+"""
+

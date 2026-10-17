@@ -18,7 +18,7 @@
     "test:coverage": "jest --runInBand --detectOpenHandles --forceExit --coverage tests/unit",
     "test:coverage:html": "jest --runInBand --detectOpenHandles --forceExit --coverage --coverageReporters=html tests/unit"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "private": true,
   "engines": {
     "node": ">=18"

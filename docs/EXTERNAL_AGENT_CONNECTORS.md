@@ -122,29 +122,34 @@ Cursor's MCP client supports custom servers with OAuth.
 
 ---
 
-### Gemini CLI
+### Gemini CLI & Antigravity (Extension / Plugin)
 
-Gemini CLI supports remote MCP over Streamable HTTP and can discover OAuth
-metadata and register a public client automatically. Add the server URL to
-`~/.gemini/settings.json`:
+`aem-mcp` is packaged directly as a Gemini extension and Antigravity plugin.
 
+#### Option A: One-click Extension Install (Gemini CLI)
+Install directly from the GitHub repository:
+```bash
+gemini extensions install https://github.com/aem-algorithm/aem-mcp
+```
+Or for local development:
+```bash
+gemini extensions link /path/to/aem-mcp
+```
+
+#### Option B: Manual settings (`~/.gemini/settings.json`)
+You can also manually register the remote MCP server:
 ```json
 {
   "mcpServers": {
     "aem-journaler": {
-      "httpUrl": "https://mcp.aem-algorithm.com/mcp"
+      "url": "https://mcp.aem-algorithm.com/mcp",
+      "type": "http"
     }
   }
 }
 ```
 
-Then run Gemini CLI and authenticate when prompted (or use `/mcp auth
-aem-journaler`). Gemini CLI uses authorization-code + PKCE with a local
-loopback callback. Complete Journaler login in the browser; the callback
-returns to Gemini CLI. This requires a local browser and the CLI running on
-the same machine as its callback listener. Gemini web/app custom connectors
-are a separate product path and may require the Gemini Connected Apps
-feature to be available for your account.
+Then run Gemini CLI and authenticate when prompted (or use `/mcp auth aem-journaler`). Gemini CLI uses authorization-code + PKCE with a local loopback callback. Complete Journaler login in the browser; the callback returns to Gemini CLI. This requires a local browser and the CLI running on the same machine as its callback listener.
 
 ---
 
