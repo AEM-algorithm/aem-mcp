@@ -9,6 +9,11 @@
 coverage/
 .nyc_output/
 
+# Test, browser & debug artifacts
+.playwright-mcp/
+.archify/
+current-bug.*
+
 # AI-DLC:START runtime
 .ai-dlc/runtime/
 # AI-DLC:END runtime

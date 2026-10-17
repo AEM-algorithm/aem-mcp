@@ -1,1 +1,8 @@
 sandbox_mode = "workspace-write"
+
+[mcp_servers.aem]
+url = "https://mcp.aem-algorithm.com/mcp"
+oauth_grant_type = "device_code"
+oauth_device_endpoint = "https://mcp.aem-algorithm.com/oauth/device"
+oauth_token_endpoint = "https://mcp.aem-algorithm.com/oauth/token"
+oauth_client_id = "codex"
