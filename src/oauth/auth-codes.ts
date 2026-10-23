@@ -110,13 +110,18 @@ export function isValidRedirectUri(uri: string): boolean {
       parsed.origin === 'https://chatgpt.com' &&
       (parsed.pathname === '/connector_platform_oauth_redirect' ||
         /^\/connector\/oauth\/[A-Za-z0-9_-]+$/.test(parsed.pathname));
+    const isClaudeCallback =
+      parsed.origin === 'https://claude.ai' &&
+      parsed.pathname === '/api/mcp/auth_callback' &&
+      parsed.search.length === 0 &&
+      parsed.hash.length === 0;
     const isGeminiConnectedAppCallback =
       parsed.origin === 'https://oauth-redirect.googleusercontent.com' &&
       /^\/r\/user_bound_custom-mcp-[A-Za-z0-9_-]+$/.test(parsed.pathname) &&
       parsed.search.length === 0 &&
       parsed.hash.length === 0;
     return (
-      (isChatGptCallback || isGeminiConnectedAppCallback) &&
+      (isChatGptCallback || isClaudeCallback || isGeminiConnectedAppCallback) &&
       !parsed.username &&
       !parsed.password
     );

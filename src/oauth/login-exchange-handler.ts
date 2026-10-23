@@ -280,7 +280,7 @@ export function createLoginExchangeRouter(deps: LoginExchangeDeps): Router {
         // redirect_uri itself is invalid: cannot redirect; render an
         // error page instead. (RFC 6749 §4.1.2.1)
         res.status(400).type('html').send(
-          '<!doctype html><html><body><p>Invalid redirect_uri. Use a loopback URL or an allowed ChatGPT callback URL.</p></body></html>',
+          '<!doctype html><html><body><p>Invalid redirect_uri. Use a loopback URL or an allowed hosted-agent callback URL.</p></body></html>',
         );
         return;
       }

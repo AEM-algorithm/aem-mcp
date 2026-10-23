@@ -163,6 +163,48 @@ describe('login exchange handler — GET /oauth/authorize', () => {
     expect(location.searchParams.get('mcp_state')).toBeTruthy();
   });
 
+  it('accepts Claude browser OAuth callback', async () => {
+    const app = buildApp(createDeviceCodesStore(), {
+      stub: { exchange: jest.fn(), exchangeBySession: jest.fn() },
+    });
+    const res = await request(app).get('/oauth/authorize').query({
+      response_type: 'code',
+      client_id: 'claude-browser-test',
+      redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+      state: 'claude-state',
+      code_challenge: 'test-challenge',
+      code_challenge_method: 'S256',
+    });
+
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.location);
+    expect(location.origin).toBe('http://localhost:8000');
+    expect(location.searchParams.get('mcp_state')).toBeTruthy();
+  });
+
+  it('rejects Claude callback variants with query strings or different paths', async () => {
+    const app = buildApp(createDeviceCodesStore(), {
+      stub: { exchange: jest.fn(), exchangeBySession: jest.fn() },
+    });
+    for (const redirectUri of [
+      'https://claude.ai/api/mcp/auth_callback?next=https://attacker.example',
+      'https://claude.ai/api/mcp/auth_callback/extra',
+      'https://claude.ai.attacker.example/api/mcp/auth_callback',
+    ]) {
+      const res = await request(app).get('/oauth/authorize').query({
+        response_type: 'code',
+        client_id: 'claude-browser-test',
+        redirect_uri: redirectUri,
+        state: 'claude-state',
+        code_challenge: 'test-challenge',
+        code_challenge_method: 'S256',
+      });
+
+      expect(res.status).toBe(400);
+      expect(res.text).toContain('Invalid redirect_uri');
+    }
+  });
+
   it('rejects lookalike hosts for Gemini Connected Apps callbacks', async () => {
     const app = buildApp(createDeviceCodesStore(), {
       stub: { exchange: jest.fn(), exchangeBySession: jest.fn() },

@@ -195,8 +195,8 @@ its `/mcp` endpoint URI are accepted as resource identifiers. The legacy
 For a deployed instance, set `PUBLIC_URL` to its exact public HTTPS origin
 (without a trailing slash), then restart/redeploy the service. Confirm that
 both well-known URLs return JSON before retrying the ChatGPT connection.
-The ChatGPT callback is restricted to its documented callback paths; other
-clients must use loopback redirect URIs.
+The ChatGPT and Claude browser callbacks are restricted to their documented
+callback paths; other clients must use loopback redirect URIs.
 
 ## Manual device-flow fallback
 

@@ -106,7 +106,7 @@ export function makeHandleRedirectToFrontend(
         redirectUri,
         req.query.state,
         'invalid_request',
-        'redirect_uri must be a loopback URL or allowed ChatGPT callback',
+        'redirect_uri must be a loopback URL or allowed hosted-agent callback',
       );
       return;
     }
@@ -140,7 +140,7 @@ function resRedirectWithError(
 ): void {
   if (typeof redirectUri !== 'string' || !isValidRedirectUri(redirectUri)) {
     res.status(400).type('html').send(
-      '<!doctype html><html><body><p>Invalid redirect_uri. Use a loopback URL or an allowed ChatGPT callback URL.</p></body></html>',
+      '<!doctype html><html><body><p>Invalid redirect_uri. Use a loopback URL or an allowed hosted-agent callback URL.</p></body></html>',
     );
     return;
   }
