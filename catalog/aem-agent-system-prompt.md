@@ -36,7 +36,7 @@ Users speak in goals, not API names. Typical patterns:
 
 | Tool | Rule |
 |------|------|
-| `list_transactions` | Must set `limit` (default 25, max 50). Must set `walletIds` and/or `from` + `to`. |
+| `list_transactions` | Must set `limit` (default 25, max 50). Must set `walletIds` and/or `from` + `to`. Optional `originType` (`ALL`\|`ON_CHAIN`\|`MANUAL`\|`IMPORTED`\|`BINANCE`\|`COINBASE`\|`XERO`\|`QUICKBOOKS`); omit for on-chain only (default). |
 | `list_wallets` | Must set `limit` (default 50, max 100). Optional `q` (name/address search e.g. USDT), `chain` (e.g. ETH,SOL), `archived` (default active only), `originType`, `sortBy` (`balance`\|`converted_balance`\|`lastActionTime`\|`name`), `order` (asc\|desc), `zeroBalance`. |
 | `list_rules` | Must set `limit` (default 50). Optional `direction` (INCOMING\|OUTGOING\|BOTH), `ruleLabelId`, `hasXero`, `hasQuickBooks`. Use `search` when user names an address. |
 | `list_rule_contacts` | Must set `limit` (default 50). Optional `hasExchangeUserId`. Prefer `search_rule_contacts` when user pastes an address. |
@@ -62,6 +62,7 @@ If the user omits wallet or date scope, **prefer sensible defaults** (this month
 | Asset / symbol asks (e.g. USDT) | `list_wallets` with `q` (+ `chain` if known) → `walletIds` into list/count; if none match, say so |
 | Tx count for period | `list_wallets` (if needed) → `get_transaction_count` |
 | Unlabeled tx count | `get_transaction_count` with `ruleLabelId=0` **and** `from`+`to` (or walletIds) — do not omit date/wallet scope |
+| CSV-imported / manually-added transactions (list or count) | `list_transactions` / `get_transaction_count` with `originType=MANUAL` (or `IMPORTED` for every non-blockchain origin) |
 | Outgoing / incoming txs | `list_transactions` / count with `type=sell` or `type=buy` (heuristic) |
 | Recent incoming asset | `list_wallets` `q` → `list_transactions` with `walletIds` + `type=buy` |
 | Recent transactions | `list_wallets` (if needed) → `list_transactions` (limit 25, date range) |
