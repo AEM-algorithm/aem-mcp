@@ -254,11 +254,14 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
     expect(count).toBe(fixture.manualTxCount + fixture.onChainTxCount);
   });
 
-  it('get_transaction_count with originType omitted forwards no originType (backend default)', async () => {
-    // Prove MCP omits the query param; post-DEV-4228 backend default covers all owner wallets.
+  it('get_transaction_count with originType omitted forwards no originType (on-chain only)', async () => {
+    // MCP omits the query param; backend default is on-chain only (not ALL).
+    // Scope both fixture wallets so isolation proves manual rows are excluded.
+    const walletIds = `${fixture.manualWalletId},${fixture.onChainWalletId}`;
     const input = {
       tool: 'get_transaction_count',
       args: {
+        walletIds,
         from: fixture.from,
         to: fixture.to,
       },
@@ -268,7 +271,7 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
 
     const body = result as { data?: number } | number;
     const count = typeof body === 'number' ? body : body.data;
-    expect(count).toBe(fixture.manualTxCount + fixture.onChainTxCount);
+    expect(count).toBe(fixture.onChainTxCount);
   });
 
   it('list_transactions originType=MANUAL returns only manual-wallet rows', async () => {
@@ -313,11 +316,13 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
     );
   });
 
-  it('list_transactions with originType omitted forwards no originType (backend default)', async () => {
-    // Date range only (MCP policy allows from+to without walletIds).
+  it('list_transactions with originType omitted forwards no originType (on-chain only)', async () => {
+    // Scope both fixture wallets so isolation proves manual rows are excluded.
+    const walletIds = `${fixture.manualWalletId},${fixture.onChainWalletId}`;
     const input = {
       tool: 'list_transactions',
       args: {
+        walletIds,
         from: fixture.from,
         to: fixture.to,
         limit: 25,
@@ -327,12 +332,11 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
     const summary = summarizeListResult(result);
     logEvidence('MCP list originType=omitted', input, summary);
 
-    expect(summary.totalCount ?? summary.count).toBe(
-      fixture.manualTxCount + fixture.onChainTxCount,
+    expect(summary.totalCount ?? summary.count).toBe(fixture.onChainTxCount);
+    const resultWalletIds = summary.walletIds as number[];
+    expect(resultWalletIds).toEqual(
+      Array(fixture.onChainTxCount).fill(fixture.onChainWalletId),
     );
-    const walletIds = summary.walletIds as number[];
-    expect(walletIds).toEqual(
-      expect.arrayContaining([fixture.manualWalletId, fixture.onChainWalletId]),
-    );
+    expect(resultWalletIds).not.toContain(fixture.manualWalletId);
   });
 });

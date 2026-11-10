@@ -88,4 +88,49 @@ describe('createToolRegistry originType on transaction tools (DEV-4229)', () => 
       ),
     ).rejects.toThrow(/requires walletIds or both from and to date filters/);
   });
+
+  it('omits originType from forwarded query params when not provided on list_transactions', async () => {
+    const request = jest.fn().mockResolvedValue({ items: [] });
+    const tools = createToolRegistry({ request });
+    const listTransactions = tools.find((tool) => tool.name === 'list_transactions');
+    expect(listTransactions).toBeDefined();
+
+    await listTransactions!.handler(
+      { session: { userId: 1 }, token: 'test-token' },
+      { from: '2026-01-01', to: '2026-01-31' },
+    );
+
+    expect(request).toHaveBeenCalledTimes(1);
+    const call = request.mock.calls[0][0] as { params: Record<string, unknown> };
+    expect(call.params).toEqual(
+      expect.objectContaining({
+        from: '2026-01-01',
+        to: '2026-01-31',
+      }),
+    );
+    expect(call.params).not.toHaveProperty('originType');
+  });
+
+  it('omits originType from forwarded query params when not provided on get_transaction_count', async () => {
+    const request = jest.fn().mockResolvedValue(0);
+    const tools = createToolRegistry({ request });
+    const getTransactionCount = tools.find((tool) => tool.name === 'get_transaction_count');
+    expect(getTransactionCount).toBeDefined();
+
+    await getTransactionCount!.handler(
+      { session: { userId: 1 }, token: 'test-token' },
+      { walletIds: '42', from: '2026-01-01', to: '2026-01-31' },
+    );
+
+    expect(request).toHaveBeenCalledTimes(1);
+    const call = request.mock.calls[0][0] as { params: Record<string, unknown> };
+    expect(call.params).toEqual(
+      expect.objectContaining({
+        walletIds: '42',
+        from: '2026-01-01',
+        to: '2026-01-31',
+      }),
+    );
+    expect(call.params).not.toHaveProperty('originType');
+  });
 });

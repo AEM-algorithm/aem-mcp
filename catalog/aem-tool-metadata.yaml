@@ -121,7 +121,7 @@ tools:
     description: >-
       Paginated transactions with date, wallet, label, type, allocate, origin, search, and sort filters.
       originType=ALL|ON_CHAIN|MANUAL|IMPORTED|BINANCE|COINBASE|XERO|QUICKBOOKS filters by wallet origin
-      (e.g. MANUAL/IMPORTED for CSV-imported transactions); omit for on-chain only (default).
+      (omit = on-chain only; use ALL for every origin; MANUAL/IMPORTED/exchange for non-chain).
       For biggest txs: sortBy=converted_amount order=desc with from+to (or walletIds) and limit.
     backend:
       method: GET
@@ -132,7 +132,7 @@ tools:
       to: { type: string, optional: true, description: ISO date end }
       limit: { type: integer, optional: true }
       offset: { type: integer, optional: true }
-      originType: { type: string, optional: true, description: "ALL | ON_CHAIN (default) | MANUAL | IMPORTED | BINANCE | COINBASE | XERO | QUICKBOOKS" }
+      originType: { type: string, optional: true, description: "Omit = on-chain only; ALL | ON_CHAIN | MANUAL | IMPORTED | BINANCE | COINBASE | XERO | QUICKBOOKS" }
       search: { type: string, optional: true, description: Matches hash, from/to, memo, or amount }
       ruleLabelId: { type: integer, optional: true, description: Label id; 0 = unlabeled }
       type: { type: string, optional: true, description: buy | sell | internal }
@@ -170,8 +170,8 @@ tools:
     domain: transaction
     description: >-
       Transaction count for filters without loading full rows. originType (ALL|ON_CHAIN|MANUAL|IMPORTED|
-      BINANCE|COINBASE|XERO|QUICKBOOKS) filters by wallet origin; use MANUAL/IMPORTED to count
-      CSV-imported transactions, omit for on-chain only (default).
+      BINANCE|COINBASE|XERO|QUICKBOOKS) filters by wallet origin; omit = on-chain only, use ALL for every
+      origin, MANUAL/IMPORTED/exchange for non-chain.
     backend:
       method: GET
       path: /transaction/entity/count
@@ -179,7 +179,7 @@ tools:
       walletIds: { type: string, optional: true }
       from: { type: string, optional: true }
       to: { type: string, optional: true }
-      originType: { type: string, optional: true, description: "ALL | ON_CHAIN (default) | MANUAL | IMPORTED | BINANCE | COINBASE | XERO | QUICKBOOKS" }
+      originType: { type: string, optional: true, description: "Omit = on-chain only; ALL | ON_CHAIN | MANUAL | IMPORTED | BINANCE | COINBASE | XERO | QUICKBOOKS" }
       ruleLabelId: { type: integer, optional: true, description: Label id; 0 = unlabeled }
       type: { type: string, optional: true, description: buy | sell | internal }
       allocateType: { type: string, optional: true, description: allocated | not_allocated }
