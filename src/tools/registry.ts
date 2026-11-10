@@ -195,7 +195,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'list_transactions',
     description:
-      'Paginated transactions with date, wallet, label, type, allocate, and sort filters. ruleLabelId=0 means unlabeled. type=buy|sell|internal. allocateType=allocated|not_allocated. search matches hash/from/to/memo/amount. For biggest txs MUST use sortBy=converted_amount and order=desc with from+to (or walletIds) and limit — do not use overview/KB alone.',
+      'Paginated transactions with date, wallet, label, type, allocate, origin, and sort filters. ruleLabelId=0 means unlabeled. type=buy|sell|internal. allocateType=allocated|not_allocated. originType=ALL|ON_CHAIN|MANUAL|IMPORTED|BINANCE|COINBASE|XERO|QUICKBOOKS filters by wallet origin (e.g. MANUAL/IMPORTED for CSV-imported transactions); omit for on-chain only (default). search matches hash/from/to/memo/amount. For biggest txs MUST use sortBy=converted_amount and order=desc with from+to (or walletIds) and limit — do not use overview/KB alone.',
     path: '/transaction/entity',
     inputSchema: {
       type: 'object',
@@ -205,6 +205,11 @@ const READ_TOOLS: ReadToolConfig[] = [
         to: { type: 'string' },
         limit: { type: 'integer' },
         offset: { type: 'integer' },
+        originType: {
+          type: 'string',
+          description:
+            'Wallet origin filter: ALL, ON_CHAIN (default), MANUAL, IMPORTED (every non-blockchain origin), or a specific exchange origin (BINANCE, COINBASE, XERO, QUICKBOOKS). Use MANUAL or IMPORTED to include CSV-imported transactions.',
+        },
         search: {
           type: 'string',
           description: 'Matches hash, from/to address, memo, or amount',
@@ -261,7 +266,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'get_transaction_count',
     description:
-      'Transaction count for filters without loading full rows. Supports ruleLabelId (0=unlabeled), type (buy|sell|internal), allocateType. For unlabeled counts always pass ruleLabelId=0 with from+to (or walletIds) — do not omit date/wallet scope.',
+      'Transaction count for filters without loading full rows. Supports ruleLabelId (0=unlabeled), type (buy|sell|internal), allocateType, originType (ALL|ON_CHAIN|MANUAL|IMPORTED|BINANCE|COINBASE|XERO|QUICKBOOKS; use MANUAL/IMPORTED for CSV-imported transactions, omit for on-chain only). For unlabeled counts always pass ruleLabelId=0 with from+to (or walletIds) — do not omit date/wallet scope.',
     path: '/transaction/entity/count',
     inputSchema: {
       type: 'object',
@@ -269,6 +274,11 @@ const READ_TOOLS: ReadToolConfig[] = [
         walletIds: { type: 'string' },
         from: { type: 'string' },
         to: { type: 'string' },
+        originType: {
+          type: 'string',
+          description:
+            'Wallet origin filter: ALL, ON_CHAIN (default), MANUAL, IMPORTED (every non-blockchain origin), or a specific exchange origin (BINANCE, COINBASE, XERO, QUICKBOOKS). Use MANUAL or IMPORTED to count CSV-imported transactions.',
+        },
         ruleLabelId: {
           type: 'integer',
           description: 'Label id filter; use 0 for unlabeled transactions',
