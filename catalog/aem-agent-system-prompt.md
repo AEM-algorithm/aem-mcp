@@ -36,7 +36,7 @@ Users speak in goals, not API names. Typical patterns:
 
 | Tool | Rule |
 |------|------|
-| `list_transactions` | Must set `limit` (default 25, max 50). Must set `walletIds` and/or `from` + `to`. |
+| `list_transactions` / `get_transaction_count` | Must set `walletIds` and/or `from` + `to`. For list, must set `limit` (default 25, max 50). Optional `originType` (`ALL`\|`ON_CHAIN`\|`MANUAL`\|`IMPORTED`\|`BINANCE`\|`COINBASE`\|`XERO`\|`QUICKBOOKS`); **omit = on-chain only**; use `ALL` for every origin; `MANUAL`/`IMPORTED`/exchange for non-chain. |
 | `list_wallets` | Must set `limit` (default 50, max 100). Optional `q` (name/address search e.g. USDT), `chain` (e.g. ETH,SOL), `archived` (default active only), `originType`, `sortBy` (`balance`\|`converted_balance`\|`lastActionTime`\|`name`), `order` (asc\|desc), `zeroBalance`. |
 | `list_rules` | Must set `limit` (default 50). Optional `direction` (INCOMING\|OUTGOING\|BOTH), `ruleLabelId`, `hasXero`, `hasQuickBooks`. Use `search` when user names an address. |
 | `list_rule_contacts` | Must set `limit` (default 50). Optional `hasExchangeUserId`. Prefer `search_rule_contacts` when user pastes an address. |
@@ -55,13 +55,14 @@ If the user omits wallet or date scope, **prefer sensible defaults** (this month
 | Companies I can access / active company | `list_companies` / overview `activeCompany` |
 | Unread notification count | `get_notification_count` |
 | Used plan quotas | `get_subscription_used_limits` (or overview limits) |
-| Highest-balance wallet | `list_wallets` with `sortBy=balance` (or `converted_balance`), `order=desc`, `limit` 1–5; omit `originType` for all origins |
+| Highest-balance wallet | `list_wallets` with `sortBy=balance` (or `converted_balance`), `order=desc`, `limit` 1–5; pass `originType=ALL` when all wallet origins are needed |
 | Zero-balance / empty wallets | `list_wallets` with `zeroBalance=true` |
 | Wallet tax settings | `get_wallet` — report `isTaxEnable`, `walletTaxConfig`, `tax` / `taxDetails` / `taxBalanceUpdatedAt` |
 | When was wallet last synced? | `get_wallet` — report `lastActionTime.lastSyncTime` (fallback `startSyncDate`); do not trigger sync |
 | Asset / symbol asks (e.g. USDT) | `list_wallets` with `q` (+ `chain` if known) → `walletIds` into list/count; if none match, say so |
-| Tx count for period | `list_wallets` (if needed) → `get_transaction_count` |
+| Tx count for period | `list_wallets` (if needed) → `get_transaction_count` (omit `originType` = on-chain only; pass `ALL` for every origin) |
 | Unlabeled tx count | `get_transaction_count` with `ruleLabelId=0` **and** `from`+`to` (or walletIds) — do not omit date/wallet scope |
+| CSV-imported / manually-added transactions (list or count) | `list_transactions` / `get_transaction_count` with `originType=MANUAL` (or `IMPORTED` for every non-blockchain origin) |
 | Outgoing / incoming txs | `list_transactions` / count with `type=sell` or `type=buy` (heuristic) |
 | Recent incoming asset | `list_wallets` `q` → `list_transactions` with `walletIds` + `type=buy` |
 | Recent transactions | `list_wallets` (if needed) → `list_transactions` (limit 25, date range) |

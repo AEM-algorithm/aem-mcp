@@ -16,7 +16,8 @@
     "test:unit": "jest --runInBand --detectOpenHandles --forceExit tests/unit",
     "test:e2e": "jest --runInBand --detectOpenHandles --forceExit --config jest.e2e.config.js",
     "test:coverage": "jest --runInBand --detectOpenHandles --forceExit --coverage tests/unit",
-    "test:coverage:html": "jest --runInBand --detectOpenHandles --forceExit --coverage --coverageReporters=html tests/unit"
+    "test:coverage:html": "jest --runInBand --detectOpenHandles --forceExit --coverage --coverageReporters=html tests/unit",
+    "test:smoke": "jest --runInBand --detectOpenHandles --forceExit --config jest.smoke.config.js"
   },
   "license": "MIT",
   "private": true,
