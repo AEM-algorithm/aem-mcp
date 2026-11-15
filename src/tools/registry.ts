@@ -3,13 +3,24 @@ import type { Method } from 'axios';
 import type { AemBackendClient } from '../clients/aem-backend-client';
 import type { SessionContext } from '../auth/session-context';
 import { applyToolPolicy } from '../guardrails/apply-tool-policy';
-import { ORIGIN_TYPE_DESCRIPTION, ORIGIN_TYPE_VALUES } from '../guardrails/origin-type';
+import {
+  ORIGIN_TYPE_ALL,
+  ORIGIN_TYPE_DESCRIPTION_ALL,
+  ORIGIN_TYPE_DESCRIPTION_LIST_WALLETS,
+  ORIGIN_TYPE_VALUES,
+} from '../guardrails/origin-type';
 import { logError, logInfo } from '../utils/logger';
 
 const ORIGIN_TYPE_SCHEMA = {
   type: 'string',
+  enum: [ORIGIN_TYPE_ALL, ...ORIGIN_TYPE_VALUES],
+  description: ORIGIN_TYPE_DESCRIPTION_ALL,
+};
+
+const LIST_WALLETS_ORIGIN_TYPE_SCHEMA = {
+  type: 'string',
   enum: [...ORIGIN_TYPE_VALUES],
-  description: ORIGIN_TYPE_DESCRIPTION,
+  description: ORIGIN_TYPE_DESCRIPTION_LIST_WALLETS,
 };
 
 export type ToolExecutionContext = {
@@ -121,14 +132,14 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'list_wallets',
     description:
-      'Lightweight paginated wallet list for one origin scope (originType; default BLOCKCHAIN when omitted). Optional filters: q (name/address search e.g. USDT), originType, chain, archived. Sort with sortBy=balance|converted_balance and order=desc for highest; zeroBalance=true for empty wallets. With sortBy=balance|converted_balance and originType omitted, the backend ranks across all origins, so pass originType to scope the list. For asset asks: search with q, then pass walletIds to list_transactions / get_transaction_count.',
+      'Lightweight paginated wallet list. originType scopes the origin (omitted = BLOCKCHAIN today; the all-origins default is blocked on aem-backend, and this endpoint does not accept ALL). Optional filters: q (name/address search e.g. USDT), originType, chain, archived. Sort with sortBy=balance|converted_balance and order=desc for highest; zeroBalance=true for empty wallets. With sortBy=balance|converted_balance and originType omitted, the backend ranks across all origins, so pass originType to scope the list. For asset asks: search with q, then pass walletIds to list_transactions / get_transaction_count.',
     path: '/wallet/list-light',
     inputSchema: {
       type: 'object',
       properties: {
         limit: { type: 'integer' },
         offset: { type: 'integer' },
-        originType: ORIGIN_TYPE_SCHEMA,
+        originType: LIST_WALLETS_ORIGIN_TYPE_SCHEMA,
         q: {
           type: 'string',
           description: 'Search wallet name or address (e.g. USDT, Hot Wallet)',
@@ -160,7 +171,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'get_wallet_count',
     description:
-      'Total wallet count for the active scope and one origin (originType; default BLOCKCHAIN when omitted). ALL is not supported; call once per origin.',
+      'Total wallet count for the active scope. originType: omitted = ALL (every origin in scope), or one explicit origin per call.',
     path: '/wallet/count',
     inputSchema: {
       type: 'object',
@@ -207,7 +218,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'list_transactions',
     description:
-      'Paginated transactions with date, wallet, label, type, allocate, origin, and sort filters. ruleLabelId=0 means unlabeled. type=buy|sell|internal. allocateType=allocated|not_allocated. originType filters to one wallet origin scope (default BLOCKCHAIN when omitted = on-chain only; MANUAL, IMPORTED = all non-blockchain origins, or one exchange/accounting origin; ALL is not supported, call once per origin). search matches hash/from/to/memo/amount. For biggest txs MUST use sortBy=converted_amount and order=desc with from+to (or walletIds) and limit — do not use overview/KB alone.',
+      'Paginated transactions with date, wallet, label, type, allocate, origin, and sort filters. ruleLabelId=0 means unlabeled. type=buy|sell|internal. allocateType=allocated|not_allocated. originType sets the origin scope: omitted = ALL (every origin in scope); BLOCKCHAIN = on-chain only; MANUAL, IMPORTED = all non-blockchain origins, or one exchange/accounting origin. search matches hash/from/to/memo/amount. For biggest txs MUST use sortBy=converted_amount and order=desc with from+to (or walletIds) and limit — do not use overview/KB alone.',
     path: '/transaction/entity',
     inputSchema: {
       type: 'object',
@@ -274,7 +285,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'get_transaction_count',
     description:
-      'Transaction count for filters without loading full rows. Supports ruleLabelId (0=unlabeled), type (buy|sell|internal), allocateType, and originType (one wallet origin scope; default BLOCKCHAIN when omitted = on-chain only; MANUAL, IMPORTED = all non-blockchain origins, or one exchange/accounting origin; ALL is not supported, call once per origin). For unlabeled counts always pass ruleLabelId=0 with from+to (or walletIds) — do not omit date/wallet scope.',
+      'Transaction count for filters without loading full rows. Supports ruleLabelId (0=unlabeled), type (buy|sell|internal), allocateType, and originType (omitted = ALL, every origin in scope; BLOCKCHAIN = on-chain only; MANUAL, IMPORTED = all non-blockchain origins, or one exchange/accounting origin). For unlabeled counts always pass ruleLabelId=0 with from+to (or walletIds) — do not omit date/wallet scope.',
     path: '/transaction/entity/count',
     inputSchema: {
       type: 'object',

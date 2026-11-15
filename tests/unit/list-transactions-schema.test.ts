@@ -89,7 +89,7 @@ describe('createToolRegistry originType on transaction tools (DEV-4229)', () => 
     ).rejects.toThrow(/requires walletIds or both from and to date filters/);
   });
 
-  it('omits originType from forwarded query params when not provided on list_transactions', async () => {
+  it('forwards originType=ALL when not provided on list_transactions (every origin in scope)', async () => {
     const request = jest.fn().mockResolvedValue({ items: [] });
     const tools = createToolRegistry({ request });
     const listTransactions = tools.find((tool) => tool.name === 'list_transactions');
@@ -106,12 +106,12 @@ describe('createToolRegistry originType on transaction tools (DEV-4229)', () => 
       expect.objectContaining({
         from: '2026-01-01',
         to: '2026-01-31',
+        originType: 'ALL',
       }),
     );
-    expect(call.params).not.toHaveProperty('originType');
   });
 
-  it('omits originType from forwarded query params when not provided on get_transaction_count', async () => {
+  it('forwards originType=ALL when not provided on get_transaction_count (every origin in scope)', async () => {
     const request = jest.fn().mockResolvedValue(0);
     const tools = createToolRegistry({ request });
     const getTransactionCount = tools.find((tool) => tool.name === 'get_transaction_count');
@@ -129,8 +129,8 @@ describe('createToolRegistry originType on transaction tools (DEV-4229)', () => 
         walletIds: '42',
         from: '2026-01-01',
         to: '2026-01-31',
+        originType: 'ALL',
       }),
     );
-    expect(call.params).not.toHaveProperty('originType');
   });
 });

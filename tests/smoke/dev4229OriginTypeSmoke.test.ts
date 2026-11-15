@@ -254,19 +254,22 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
     expect(count).toBe(fixture.manualTxCount);
   });
 
-  it('get_transaction_count rejects originType=ALL before calling the backend', async () => {
+  it('get_transaction_count originType=ALL returns manual + on-chain count', async () => {
+    const walletIds = `${fixture.manualWalletId},${fixture.onChainWalletId}`;
     const input = {
       tool: 'get_transaction_count',
-      args: { originType: 'ALL', walletIds: String(fixture.manualWalletId), from: fixture.from, to: fixture.to },
+      args: { originType: 'ALL', walletIds, from: fixture.from, to: fixture.to },
     };
-    await expect(getTransactionCount.handler(ctx(), input.args)).rejects.toThrow(
-      /originType=ALL is not supported/,
-    );
-    logEvidence('MCP count originType=ALL rejected', input, 'ToolPolicyError');
+    const result = await getTransactionCount.handler(ctx(), input.args);
+    logEvidence('MCP count originType=ALL', input, summarizeCountResult(result));
+
+    const body = result as { data?: number } | number;
+    const count = typeof body === 'number' ? body : body.data;
+    expect(count).toBe(fixture.manualTxCount + fixture.onChainTxCount);
   });
 
-  it('get_transaction_count with originType omitted forwards no originType (on-chain only)', async () => {
-    // MCP omits the query param; backend default is on-chain only (not ALL).
+  it('get_transaction_count with originType omitted defaults to ALL (manual + on-chain)', async () => {
+    // MCP sends originType=ALL when omitted (every origin in scope).
     // Scope both fixture wallets so isolation proves manual rows are excluded.
     const walletIds = `${fixture.manualWalletId},${fixture.onChainWalletId}`;
     const input = {
@@ -279,6 +282,20 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
     };
     const result = await getTransactionCount.handler(ctx(), input.args);
     logEvidence('MCP count originType=omitted', input, summarizeCountResult(result));
+
+    const body = result as { data?: number } | number;
+    const count = typeof body === 'number' ? body : body.data;
+    expect(count).toBe(fixture.manualTxCount + fixture.onChainTxCount);
+  });
+
+  it('get_transaction_count originType=BLOCKCHAIN returns on-chain count only', async () => {
+    const walletIds = `${fixture.manualWalletId},${fixture.onChainWalletId}`;
+    const input = {
+      tool: 'get_transaction_count',
+      args: { originType: 'BLOCKCHAIN', walletIds, from: fixture.from, to: fixture.to },
+    };
+    const result = await getTransactionCount.handler(ctx(), input.args);
+    logEvidence('MCP count originType=BLOCKCHAIN', input, summarizeCountResult(result));
 
     const body = result as { data?: number } | number;
     const count = typeof body === 'number' ? body : body.data;
@@ -326,19 +343,23 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
     expect(summary.walletIds).not.toContain(fixture.onChainWalletId);
   });
 
-  it('list_transactions rejects originType=ALL before calling the backend', async () => {
+  it('list_transactions originType=ALL returns manual + on-chain rows', async () => {
+    const walletIds = `${fixture.manualWalletId},${fixture.onChainWalletId}`;
     const input = {
       tool: 'list_transactions',
-      args: { originType: 'ALL', walletIds: String(fixture.manualWalletId), from: fixture.from, to: fixture.to },
+      args: { originType: 'ALL', walletIds, from: fixture.from, to: fixture.to, limit: 25 },
     };
-    await expect(listTransactions.handler(ctx(), input.args)).rejects.toThrow(
-      /originType=ALL is not supported/,
+    const result = await listTransactions.handler(ctx(), input.args);
+    const summary = summarizeListResult(result);
+    logEvidence('MCP list originType=ALL', input, summary);
+
+    expect(summary.totalCount ?? summary.count).toBe(
+      fixture.manualTxCount + fixture.onChainTxCount,
     );
-    logEvidence('MCP list originType=ALL rejected', input, 'ToolPolicyError');
   });
 
-  it('list_transactions with originType omitted forwards no originType (on-chain only)', async () => {
-    // Scope both fixture wallets so isolation proves manual rows are excluded.
+  it('list_transactions with originType omitted defaults to ALL (manual + on-chain)', async () => {
+    // Scope both fixture wallets; MCP sends originType=ALL when omitted.
     const walletIds = `${fixture.manualWalletId},${fixture.onChainWalletId}`;
     const input = {
       tool: 'list_transactions',
@@ -353,11 +374,25 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
     const summary = summarizeListResult(result);
     logEvidence('MCP list originType=omitted', input, summary);
 
-    expect(summary.totalCount ?? summary.count).toBe(fixture.onChainTxCount);
-    const resultWalletIds = summary.walletIds as number[];
-    expect(resultWalletIds).toEqual(
-      Array(fixture.onChainTxCount).fill(fixture.onChainWalletId),
+    expect(summary.totalCount ?? summary.count).toBe(
+      fixture.manualTxCount + fixture.onChainTxCount,
     );
-    expect(resultWalletIds).not.toContain(fixture.manualWalletId);
+    const resultWalletIds = summary.walletIds as number[];
+    expect(resultWalletIds).toContain(fixture.manualWalletId);
+    expect(resultWalletIds).toContain(fixture.onChainWalletId);
+  });
+
+  it('list_transactions originType=BLOCKCHAIN returns on-chain rows only', async () => {
+    const walletIds = `${fixture.manualWalletId},${fixture.onChainWalletId}`;
+    const input = {
+      tool: 'list_transactions',
+      args: { originType: 'BLOCKCHAIN', walletIds, from: fixture.from, to: fixture.to, limit: 25 },
+    };
+    const result = await listTransactions.handler(ctx(), input.args);
+    const summary = summarizeListResult(result);
+    logEvidence('MCP list originType=BLOCKCHAIN', input, summary);
+
+    expect(summary.totalCount ?? summary.count).toBe(fixture.onChainTxCount);
+    expect(summary.walletIds as number[]).not.toContain(fixture.manualWalletId);
   });
 });

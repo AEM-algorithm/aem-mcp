@@ -34,7 +34,7 @@ tools:
     kind: read
     domain: wallet
     description: >-
-      Lightweight paginated wallet list for one origin scope (originType; default BLOCKCHAIN when omitted).
+      Lightweight paginated wallet list. originType scopes the origin (omitted = BLOCKCHAIN today; all-origins default blocked on aem-backend; ALL not accepted by this endpoint).
       q/chain/archived filters; sortBy balance|converted_balance; zeroBalance for empty wallets.
       With sortBy=balance|converted_balance and originType omitted, the backend ranks across all origins.
     backend:
@@ -43,7 +43,7 @@ tools:
     input:
       limit: { type: integer, optional: true }
       offset: { type: integer, optional: true }
-      originType: { type: string, optional: true, description: "Default BLOCKCHAIN; BLOCKCHAIN | MANUAL | IMPORTED | COINBASE | BINANCE | XERO | QUICKBOOKS; one per call; ALL not supported" }
+      originType: { type: string, optional: true, description: "omitted = BLOCKCHAIN today (all-origins default blocked on aem-backend; /wallet/list-light does not accept ALL); BLOCKCHAIN | MANUAL | IMPORTED | COINBASE | BINANCE | XERO | QUICKBOOKS; one per call" }
       q: { type: string, optional: true, description: Search wallet name or address e.g. USDT }
       chain: { type: string, optional: true, description: Comma-separated chains e.g. ETH,SOL }
       archived: { type: boolean, optional: true, description: true = archived only; false/omit = active }
@@ -55,12 +55,12 @@ tools:
     phase: 0
     kind: read
     domain: wallet
-    description: Total wallet count for the active scope and one origin (originType; default BLOCKCHAIN when omitted; ALL not supported)
+    description: Total wallet count for the active scope. originType: omitted = ALL (every origin in scope), or one origin per call
     backend:
       method: GET
       path: /wallet/count
     input:
-      originType: { type: string, optional: true, description: "Default BLOCKCHAIN; BLOCKCHAIN | MANUAL | IMPORTED | COINBASE | BINANCE | XERO | QUICKBOOKS; one per call; ALL not supported" }
+      originType: { type: string, optional: true, description: "omitted = ALL (every origin in scope); ALL | BLOCKCHAIN | MANUAL | IMPORTED | COINBASE | BINANCE | XERO | QUICKBOOKS; one per call" }
 
   - name: get_wallet
     phase: 1
@@ -122,8 +122,7 @@ tools:
     domain: transaction
     description: >-
       Paginated transactions with date, wallet, label, type, allocate, origin, search, and sort filters.
-      originType filters to one wallet origin scope (default BLOCKCHAIN when omitted = on-chain only;
-      MANUAL, IMPORTED = all non-blockchain origins, or one exchange/accounting origin; ALL not supported).
+      originType sets the origin scope: omitted = ALL (every origin in scope); BLOCKCHAIN = on-chain only; MANUAL, IMPORTED = all non-blockchain origins, or one exchange/accounting origin.
       For biggest txs: sortBy=converted_amount order=desc with from+to (or walletIds) and limit.
     backend:
       method: GET
@@ -134,7 +133,7 @@ tools:
       to: { type: string, optional: true, description: ISO date end }
       limit: { type: integer, optional: true }
       offset: { type: integer, optional: true }
-      originType: { type: string, optional: true, description: "Default BLOCKCHAIN (on-chain only); BLOCKCHAIN | MANUAL | IMPORTED | COINBASE | BINANCE | XERO | QUICKBOOKS; one per call; ALL not supported" }
+      originType: { type: string, optional: true, description: "omitted = ALL (every origin in scope); ALL | BLOCKCHAIN | MANUAL | IMPORTED | COINBASE | BINANCE | XERO | QUICKBOOKS; one per call" }
       search: { type: string, optional: true, description: Matches hash, from/to, memo, or amount }
       ruleLabelId: { type: integer, optional: true, description: Label id; 0 = unlabeled }
       type: { type: string, optional: true, description: buy | sell | internal }
@@ -171,9 +170,9 @@ tools:
     kind: read
     domain: transaction
     description: >-
-      Transaction count for filters without loading full rows. originType filters to one wallet origin scope
-      (default BLOCKCHAIN when omitted = on-chain only; MANUAL, IMPORTED = all non-blockchain origins, or one
-      exchange/accounting origin; ALL not supported).
+      Transaction count for filters without loading full rows. originType sets the origin scope: omitted = ALL
+      (every origin in scope); BLOCKCHAIN = on-chain only; MANUAL, IMPORTED = all non-blockchain origins, or one
+      exchange/accounting origin.
     backend:
       method: GET
       path: /transaction/entity/count
@@ -181,7 +180,7 @@ tools:
       walletIds: { type: string, optional: true }
       from: { type: string, optional: true }
       to: { type: string, optional: true }
-      originType: { type: string, optional: true, description: "Default BLOCKCHAIN (on-chain only); BLOCKCHAIN | MANUAL | IMPORTED | COINBASE | BINANCE | XERO | QUICKBOOKS; one per call; ALL not supported" }
+      originType: { type: string, optional: true, description: "omitted = ALL (every origin in scope); ALL | BLOCKCHAIN | MANUAL | IMPORTED | COINBASE | BINANCE | XERO | QUICKBOOKS; one per call" }
       ruleLabelId: { type: integer, optional: true, description: Label id; 0 = unlabeled }
       type: { type: string, optional: true, description: buy | sell | internal }
       allocateType: { type: string, optional: true, description: allocated | not_allocated }

@@ -1,31 +1,44 @@
 import { ToolPolicyError } from '../errors/tool-policy-error';
 import { AVOID_TOOLS, PAGINATION_RULES } from './agent-defaults';
-import { ORIGIN_TYPE_TOOLS, ORIGIN_TYPE_VALUES } from './origin-type';
+import {
+  ORIGIN_TYPE_ALL,
+  ORIGIN_TYPE_ALL_SUPPORTED_TOOLS,
+  ORIGIN_TYPE_TOOLS,
+  ORIGIN_TYPE_VALUES,
+} from './origin-type';
 
 function isNonEmptyString(value: unknown): boolean {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
 function applyOriginType(toolName: string, args: Record<string, unknown>): void {
-  if (args.originType === undefined || args.originType === null) {
-    return;
-  }
+  const allAllowed = ORIGIN_TYPE_ALL_SUPPORTED_TOOLS.has(toolName);
+  const allowed: readonly string[] = allAllowed
+    ? [ORIGIN_TYPE_ALL, ...ORIGIN_TYPE_VALUES]
+    : ORIGIN_TYPE_VALUES;
 
-  const normalized = String(args.originType).trim().toUpperCase();
+  const normalized =
+    args.originType === undefined || args.originType === null
+      ? ''
+      : String(args.originType).trim().toUpperCase();
+
   if (normalized === '') {
-    delete args.originType;
+    if (allAllowed) {
+      args.originType = ORIGIN_TYPE_ALL;
+    } else {
+      delete args.originType;
+    }
     return;
   }
 
-  const allowed = ORIGIN_TYPE_VALUES.join(', ');
-  if (normalized === 'ALL') {
+  if (normalized === ORIGIN_TYPE_ALL && !allAllowed) {
     throw new ToolPolicyError(
-      `${toolName}: originType=ALL is not supported. Query each origin separately (allowed: ${allowed})`,
+      `${toolName}: originType=ALL is not supported by ${toolName} (backend /wallet/list-light does not accept ALL yet)`,
     );
   }
-  if (!(ORIGIN_TYPE_VALUES as readonly string[]).includes(normalized)) {
+  if (!allowed.includes(normalized)) {
     throw new ToolPolicyError(
-      `${toolName}: unsupported originType "${String(args.originType)}" (allowed: ${allowed})`,
+      `${toolName}: unsupported originType "${String(args.originType)}" (allowed: ${allowed.join(', ')})`,
     );
   }
 
