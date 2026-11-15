@@ -36,12 +36,12 @@ Users speak in goals, not API names. Typical patterns:
 
 | Tool | Rule |
 |------|------|
-| `list_transactions` / `get_transaction_count` | Must set `walletIds` and/or `from` + `to`. For list, must set `limit` (default 25, max 50). Optional `originType` (`ALL`\|`BLOCKCHAIN`\|`MANUAL`\|`IMPORTED`\|`COINBASE`\|`BINANCE`\|`XERO`\|`QUICKBOOKS`); **omit = `ALL`** (every origin in scope); `BLOCKCHAIN` = on-chain only; `IMPORTED` = every non-blockchain origin. |
-| `list_wallets` | Must set `limit` (default 50, max 100). Optional `q` (name/address search e.g. USDT), `chain` (e.g. ETH,SOL), `archived` (default active only), `originType` (same values; **omit = `ALL`**), `sortBy` (`balance`\|`converted_balance`\|`lastActionTime`\|`name`), `order` (asc\|desc), `zeroBalance`. |
+| `list_transactions` / `get_transaction_count` | Must set `walletIds` and/or `from` + `to`. For list, must set `limit` (default 25, max 50). Optional `originType` (`ALL`\|`BLOCKCHAIN`\|`MANUAL`\|`IMPORTED`\|`COINBASE`\|`BINANCE`\|`XERO`\|`QUICKBOOKS`); **omit = `ALL`** (every origin this session can access); `BLOCKCHAIN` = on-chain only; `MANUAL` = manual wallets only; `IMPORTED` = every non-blockchain origin. |
+| `list_wallets` | Must set `limit` (default 50, max 100). Optional `q` (name/address search e.g. USDT), `chain` (e.g. ETH,SOL), `archived` (default active only), `originType` (same values; **omit = `ALL`** within the active session's wallet access), `sortBy` (`balance`\|`converted_balance`\|`lastActionTime`\|`name`), `order` (asc\|desc), `zeroBalance`. |
 | `list_rules` | Must set `limit` (default 50). Optional `direction` (INCOMING\|OUTGOING\|BOTH), `ruleLabelId`, `hasXero`, `hasQuickBooks`. Use `search` when user names an address. |
 | `list_rule_contacts` | Must set `limit` (default 50). Optional `hasExchangeUserId`. Prefer `search_rule_contacts` when user pastes an address. |
 
-**State the origin scope** in every answer built on `list_wallets`, `get_wallet_count`, `list_transactions`, or `get_transaction_count` (for example "all origins", "on-chain wallets (BLOCKCHAIN)", or "manual and imported (IMPORTED)"), because the scope depends on `originType`.
+**State the origin scope** in every answer built on `list_wallets`, `get_wallet_count`, `list_transactions`, or `get_transaction_count` (for example "all origins available in this session", "on-chain wallets (BLOCKCHAIN)", "manual wallets (MANUAL)", or "all non-blockchain origins (IMPORTED)"), because the scope depends on `originType` and the active session's access.
 
 If the user omits wallet or date scope, **prefer sensible defaults** (this month / last 30 days, small limit) and call the tool — only ask a clarifying question when the request is ambiguous across multiple wallets *and* a default would be misleading.
 

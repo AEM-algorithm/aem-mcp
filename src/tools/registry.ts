@@ -207,7 +207,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'list_transactions',
     description:
-      'Paginated transactions with date, wallet, label, type, allocate, origin, and sort filters. ruleLabelId=0 means unlabeled. type=buy|sell|internal. allocateType=allocated|not_allocated. originType sets the origin scope: omitted = ALL (every origin in scope); BLOCKCHAIN = on-chain only; MANUAL, IMPORTED = all non-blockchain origins, or one exchange/accounting origin. search matches hash/from/to/memo/amount. For biggest txs MUST use sortBy=converted_amount and order=desc with from+to (or walletIds) and limit — do not use overview/KB alone.',
+      'Paginated transactions with date, wallet, label, type, allocate, origin, and sort filters. ruleLabelId=0 means unlabeled. type=buy|sell|internal. allocateType=allocated|not_allocated. originType is limited to wallets available in the active session: omitted = ALL (every authorized origin); BLOCKCHAIN = on-chain only; MANUAL = manual-wallet transactions only; IMPORTED = all non-blockchain origins combined; COINBASE, BINANCE, XERO, QUICKBOOKS = that integration only. search matches hash/from/to/memo/amount. For biggest txs MUST use sortBy=converted_amount and order=desc with from+to (or walletIds) and limit — do not use overview/KB alone.',
     path: '/transaction/entity',
     inputSchema: {
       type: 'object',
@@ -274,7 +274,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'get_transaction_count',
     description:
-      'Transaction count for filters without loading full rows. Supports ruleLabelId (0=unlabeled), type (buy|sell|internal), allocateType, and originType (omitted = ALL, every origin in scope; BLOCKCHAIN = on-chain only; MANUAL, IMPORTED = all non-blockchain origins, or one exchange/accounting origin). For unlabeled counts always pass ruleLabelId=0 with from+to (or walletIds) — do not omit date/wallet scope.',
+      'Transaction count for filters without loading full rows. Results are limited to wallets available in the active session. Supports ruleLabelId (0=unlabeled), type (buy|sell|internal), allocateType, and originType: omitted = ALL (every authorized origin); BLOCKCHAIN = on-chain only; MANUAL = manual-wallet transactions only; IMPORTED = all non-blockchain origins combined; COINBASE, BINANCE, XERO, QUICKBOOKS = that integration only. For unlabeled counts always pass ruleLabelId=0 with from+to (or walletIds) — do not omit date/wallet scope.',
     path: '/transaction/entity/count',
     inputSchema: {
       type: 'object',
