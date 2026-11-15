@@ -34,7 +34,7 @@ tools:
     kind: read
     domain: wallet
     description: >-
-      Lightweight paginated wallet list. originType scopes the origin (omitted = BLOCKCHAIN today; all-origins default blocked on aem-backend; ALL not accepted by this endpoint).
+      Lightweight paginated wallet list. originType scopes the origin (omitted = ALL: every origin in scope).
       q/chain/archived filters; sortBy balance|converted_balance; zeroBalance for empty wallets.
       With sortBy=balance|converted_balance and originType omitted, the backend ranks across all origins.
     backend:
@@ -43,7 +43,7 @@ tools:
     input:
       limit: { type: integer, optional: true }
       offset: { type: integer, optional: true }
-      originType: { type: string, optional: true, description: "omitted = BLOCKCHAIN today (all-origins default blocked on aem-backend; /wallet/list-light does not accept ALL); BLOCKCHAIN | MANUAL | IMPORTED | COINBASE | BINANCE | XERO | QUICKBOOKS; one per call" }
+      originType: { type: string, optional: true, description: "omitted = ALL (every origin in scope); ALL | BLOCKCHAIN | MANUAL | IMPORTED | COINBASE | BINANCE | XERO | QUICKBOOKS; one per call" }
       q: { type: string, optional: true, description: Search wallet name or address e.g. USDT }
       chain: { type: string, optional: true, description: Comma-separated chains e.g. ETH,SOL }
       archived: { type: boolean, optional: true, description: true = archived only; false/omit = active }

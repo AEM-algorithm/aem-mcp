@@ -3,24 +3,13 @@ import type { Method } from 'axios';
 import type { AemBackendClient } from '../clients/aem-backend-client';
 import type { SessionContext } from '../auth/session-context';
 import { applyToolPolicy } from '../guardrails/apply-tool-policy';
-import {
-  ORIGIN_TYPE_ALL,
-  ORIGIN_TYPE_DESCRIPTION_ALL,
-  ORIGIN_TYPE_DESCRIPTION_LIST_WALLETS,
-  ORIGIN_TYPE_VALUES,
-} from '../guardrails/origin-type';
+import { ORIGIN_TYPE_ALL, ORIGIN_TYPE_DESCRIPTION, ORIGIN_TYPE_VALUES } from '../guardrails/origin-type';
 import { logError, logInfo } from '../utils/logger';
 
 const ORIGIN_TYPE_SCHEMA = {
   type: 'string',
   enum: [ORIGIN_TYPE_ALL, ...ORIGIN_TYPE_VALUES],
-  description: ORIGIN_TYPE_DESCRIPTION_ALL,
-};
-
-const LIST_WALLETS_ORIGIN_TYPE_SCHEMA = {
-  type: 'string',
-  enum: [...ORIGIN_TYPE_VALUES],
-  description: ORIGIN_TYPE_DESCRIPTION_LIST_WALLETS,
+  description: ORIGIN_TYPE_DESCRIPTION,
 };
 
 export type ToolExecutionContext = {
@@ -132,14 +121,14 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'list_wallets',
     description:
-      'Lightweight paginated wallet list. originType scopes the origin (omitted = BLOCKCHAIN today; the all-origins default is blocked on aem-backend, and this endpoint does not accept ALL). Optional filters: q (name/address search e.g. USDT), originType, chain, archived. Sort with sortBy=balance|converted_balance and order=desc for highest; zeroBalance=true for empty wallets. With sortBy=balance|converted_balance and originType omitted, the backend ranks across all origins, so pass originType to scope the list. For asset asks: search with q, then pass walletIds to list_transactions / get_transaction_count.',
+      'Lightweight paginated wallet list. originType scopes the origin (omitted = ALL: every origin in scope). Optional filters: q (name/address search e.g. USDT), originType, chain, archived. Sort with sortBy=balance|converted_balance and order=desc for highest; zeroBalance=true for empty wallets. For asset asks: search with q, then pass walletIds to list_transactions / get_transaction_count.',
     path: '/wallet/list-light',
     inputSchema: {
       type: 'object',
       properties: {
         limit: { type: 'integer' },
         offset: { type: 'integer' },
-        originType: LIST_WALLETS_ORIGIN_TYPE_SCHEMA,
+        originType: ORIGIN_TYPE_SCHEMA,
         q: {
           type: 'string',
           description: 'Search wallet name or address (e.g. USDT, Hot Wallet)',

@@ -37,11 +37,11 @@ Users speak in goals, not API names. Typical patterns:
 | Tool | Rule |
 |------|------|
 | `list_transactions` / `get_transaction_count` | Must set `walletIds` and/or `from` + `to`. For list, must set `limit` (default 25, max 50). Optional `originType` (`ALL`\|`BLOCKCHAIN`\|`MANUAL`\|`IMPORTED`\|`COINBASE`\|`BINANCE`\|`XERO`\|`QUICKBOOKS`); **omit = `ALL`** (every origin in scope); `BLOCKCHAIN` = on-chain only; `IMPORTED` = every non-blockchain origin. |
-| `list_wallets` | Must set `limit` (default 50, max 100). Optional `q` (name/address search e.g. USDT), `chain` (e.g. ETH,SOL), `archived` (default active only), `originType` (`BLOCKCHAIN`\|`MANUAL`\|`IMPORTED`\|`COINBASE`\|`BINANCE`\|`XERO`\|`QUICKBOOKS`; omit = `BLOCKCHAIN` today, all-origins default blocked on backend, `ALL` not accepted), `sortBy` (`balance`\|`converted_balance`\|`lastActionTime`\|`name`), `order` (asc\|desc), `zeroBalance`. |
+| `list_wallets` | Must set `limit` (default 50, max 100). Optional `q` (name/address search e.g. USDT), `chain` (e.g. ETH,SOL), `archived` (default active only), `originType` (same values; **omit = `ALL`**), `sortBy` (`balance`\|`converted_balance`\|`lastActionTime`\|`name`), `order` (asc\|desc), `zeroBalance`. |
 | `list_rules` | Must set `limit` (default 50). Optional `direction` (INCOMING\|OUTGOING\|BOTH), `ruleLabelId`, `hasXero`, `hasQuickBooks`. Use `search` when user names an address. |
 | `list_rule_contacts` | Must set `limit` (default 50). Optional `hasExchangeUserId`. Prefer `search_rule_contacts` when user pastes an address. |
 
-**State the origin scope** in every answer built on `list_wallets`, `get_wallet_count`, `list_transactions`, or `get_transaction_count` (for example "on-chain wallets (BLOCKCHAIN)" or "manual and imported (IMPORTED)"), because omitting `originType` means `ALL` on the count and transaction tools, and `BLOCKCHAIN` on `list_wallets` until the backend accepts `ALL` there.
+**State the origin scope** in every answer built on `list_wallets`, `get_wallet_count`, `list_transactions`, or `get_transaction_count` (for example "all origins", "on-chain wallets (BLOCKCHAIN)", or "manual and imported (IMPORTED)"), because the scope depends on `originType`.
 
 If the user omits wallet or date scope, **prefer sensible defaults** (this month / last 30 days, small limit) and call the tool — only ask a clarifying question when the request is ambiguous across multiple wallets *and* a default would be misleading.
 
@@ -57,7 +57,7 @@ If the user omits wallet or date scope, **prefer sensible defaults** (this month
 | Companies I can access / active company | `list_companies` / overview `activeCompany` |
 | Unread notification count | `get_notification_count` |
 | Used plan quotas | `get_subscription_used_limits` (or overview limits) |
-| Highest-balance wallet | `list_wallets` with `sortBy=balance` (or `converted_balance`), `order=desc`, `limit` 1–5; `list_wallets` does not accept `ALL` yet: pass an explicit `originType` (e.g. `BLOCKCHAIN`) so the ranking scope is clear, and rank each origin separately to compare origins |
+| Highest-balance wallet | `list_wallets` with `sortBy=balance` (or `converted_balance`), `order=desc`, `limit` 1–5 (omit `originType` = all origins; pass `originType` to scope to one origin) |
 | Zero-balance / empty wallets | `list_wallets` with `zeroBalance=true` |
 | Wallet tax settings | `get_wallet` — report `isTaxEnable`, `walletTaxConfig`, `tax` / `taxDetails` / `taxBalanceUpdatedAt` |
 | When was wallet last synced? | `get_wallet` — report `lastActionTime.lastSyncTime` (fallback `startSyncDate`); do not trigger sync |
