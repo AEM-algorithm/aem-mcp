@@ -158,6 +158,7 @@ async function main() {
   const { TransactionType, AcceptedCrypto, AcceptedFiat } = backendRequire('./src/domain/entity/Transaction');
   const { WalletType } = backendRequire('./src/domain/entity/Wallet');
   const { TransactionController } = backendRequire('./src/app/controller/TransactionController');
+  const { WalletController } = backendRequire('./src/app/controller/WalletController');
 
   await cleanTestDatabase();
   const services = setupWalletServices();
@@ -190,6 +191,10 @@ async function main() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
   app.use(cookieParser());
+  const DatabaseTransactionMiddleware = backendRequire(
+    './src/app/middleware/DatabaseTransactionMiddleware',
+  ).default;
+  app.use(DatabaseTransactionMiddleware);
 
   const transactionController = new TransactionController(
     services.sessionMiddleware,
@@ -210,9 +215,24 @@ async function main() {
     importedTransactionUseCase,
   );
 
+  const walletController = new WalletController(
+    services.sessionMiddleware,
+    services.walletMiddleware,
+    services.subscriptionMiddleware,
+    services.userUseCase,
+    services.walletUseCase,
+    services.comWalletUseCase,
+    services.transactionUseCase,
+    services.priceConvertUseCase,
+    mockMailNotificationUseCase,
+    mockNotificationUseCase,
+    mockXeroExportService,
+  );
+
   app.use(services.sessionMiddleware.session);
   const router = Router();
   transactionController.registerRoutes(router);
+  walletController.registerRoutes(router);
   app.use('/api', router);
   app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'dev4229-harness' }));
 

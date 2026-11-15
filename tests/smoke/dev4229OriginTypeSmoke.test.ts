@@ -1,10 +1,10 @@
 /**
  * DEV-4229 Smoke Test
  * ===================
- * Real end-to-end smoke for originType forwarding on list_transactions and
- * get_transaction_count. Boots the proven DEV-4228 in-process Transaction API
- * against real Postgres journaler_test (no mocked backend client), then drives
- * createToolRegistry handlers through a real AemBackendClient over HTTP.
+ * Real end-to-end smoke for originType forwarding on wallet and transaction
+ * list/count tools. Boots the in-process AEM API against a unique disposable
+ * Postgres database, then drives createToolRegistry handlers through a real
+ * AemBackendClient over HTTP.
  *
  * Run:
  *   npx jest --runInBand --detectOpenHandles --forceExit --config jest.smoke.config.js \
@@ -76,6 +76,23 @@ function summarizeListResult(result: unknown): Record<string, unknown> {
     count: data.count ?? transactions.length,
     totalCount: data.totalCount,
     walletIds: transactions.map((tx) => (tx as { walletId?: number }).walletId),
+  };
+}
+
+function summarizeWalletListResult(result: unknown): Record<string, unknown> {
+  if (!result || typeof result !== 'object') {
+    return { raw: result };
+  }
+  const body = result as Record<string, unknown>;
+  const data = (body.data && typeof body.data === 'object' ? body.data : body) as Record<
+    string,
+    unknown
+  >;
+  const wallets = Array.isArray(data.items) ? data.items : [];
+  return {
+    status: body.status,
+    total: data.total,
+    walletIds: wallets.map((wallet) => (wallet as { id?: number }).id),
   };
 }
 
@@ -154,6 +171,8 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
 
   let child: ChildProcess;
   let fixture: SmokeFixture;
+  let listWallets: ToolDefinition;
+  let getWalletCount: ToolDefinition;
   let listTransactions: ToolDefinition;
   let getTransactionCount: ToolDefinition;
 
@@ -199,6 +218,8 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
 
     const backend = createAemBackendClient(env);
     const tools = createToolRegistry(backend);
+    listWallets = findTool(tools, 'list_wallets');
+    getWalletCount = findTool(tools, 'get_wallet_count');
     listTransactions = findTool(tools, 'list_transactions');
     getTransactionCount = findTool(tools, 'get_transaction_count');
   });
@@ -219,6 +240,25 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
   const ctx = () => ({
     session: { userId: fixture.userId },
     token: fixture.token,
+  });
+
+  it('list_wallets originType=ALL includes fixture manual and on-chain roots', async () => {
+    const input = { tool: 'list_wallets', args: { originType: 'ALL', limit: 50 } };
+    const result = await listWallets.handler(ctx(), input.args);
+    const summary = summarizeWalletListResult(result);
+    logEvidence('MCP wallet list originType=ALL', input, summary);
+
+    expect(summary.walletIds).toContain(fixture.manualWalletId);
+    expect(summary.walletIds).toContain(fixture.onChainWalletId);
+  });
+
+  it('get_wallet_count originType=ALL counts fixture manual and on-chain wallets', async () => {
+    const input = { tool: 'get_wallet_count', args: { originType: 'ALL' } };
+    const result = await getWalletCount.handler(ctx(), input.args);
+    const summary = summarizeCountResult(result);
+    logEvidence('MCP wallet count originType=ALL', input, summary);
+
+    expect(summary.data).toMatchObject({ count: 2 });
   });
 
   it('get_transaction_count originType=MANUAL returns only manual-wallet count', async () => {
