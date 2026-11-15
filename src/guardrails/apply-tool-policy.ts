@@ -1,8 +1,35 @@
 import { ToolPolicyError } from '../errors/tool-policy-error';
 import { AVOID_TOOLS, PAGINATION_RULES } from './agent-defaults';
+import { ORIGIN_TYPE_TOOLS, ORIGIN_TYPE_VALUES } from './origin-type';
 
 function isNonEmptyString(value: unknown): boolean {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function applyOriginType(toolName: string, args: Record<string, unknown>): void {
+  if (args.originType === undefined || args.originType === null) {
+    return;
+  }
+
+  const normalized = String(args.originType).trim().toUpperCase();
+  if (normalized === '') {
+    delete args.originType;
+    return;
+  }
+
+  const allowed = ORIGIN_TYPE_VALUES.join(', ');
+  if (normalized === 'ALL') {
+    throw new ToolPolicyError(
+      `${toolName}: originType=ALL is not supported. Query each origin separately (allowed: ${allowed})`,
+    );
+  }
+  if (!(ORIGIN_TYPE_VALUES as readonly string[]).includes(normalized)) {
+    throw new ToolPolicyError(
+      `${toolName}: unsupported originType "${String(args.originType)}" (allowed: ${allowed})`,
+    );
+  }
+
+  args.originType = normalized;
 }
 
 function applyPagination(toolName: string, args: Record<string, unknown>): void {
@@ -43,6 +70,10 @@ export function applyToolPolicy(
 
   const normalized = { ...args };
   applyPagination(toolName, normalized);
+
+  if (ORIGIN_TYPE_TOOLS.has(toolName)) {
+    applyOriginType(toolName, normalized);
+  }
 
   if (toolName === 'list_transactions') {
     validateListTransactionsFilters(normalized);

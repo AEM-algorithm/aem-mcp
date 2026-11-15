@@ -3,7 +3,14 @@ import type { Method } from 'axios';
 import type { AemBackendClient } from '../clients/aem-backend-client';
 import type { SessionContext } from '../auth/session-context';
 import { applyToolPolicy } from '../guardrails/apply-tool-policy';
+import { ORIGIN_TYPE_DESCRIPTION, ORIGIN_TYPE_VALUES } from '../guardrails/origin-type';
 import { logError, logInfo } from '../utils/logger';
+
+const ORIGIN_TYPE_SCHEMA = {
+  type: 'string',
+  enum: [...ORIGIN_TYPE_VALUES],
+  description: ORIGIN_TYPE_DESCRIPTION,
+};
 
 export type ToolExecutionContext = {
   session: SessionContext;
@@ -114,14 +121,14 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'list_wallets',
     description:
-      'Lightweight paginated wallet list. Optional filters: q (name/address search e.g. USDT), originType, chain, archived. Sort with sortBy=balance|converted_balance and order=desc for highest; zeroBalance=true for empty wallets. For asset asks: search with q, then pass walletIds to list_transactions / get_transaction_count.',
+      'Lightweight paginated wallet list for one origin scope (originType; default BLOCKCHAIN when omitted). Optional filters: q (name/address search e.g. USDT), originType, chain, archived. Sort with sortBy=balance|converted_balance and order=desc for highest; zeroBalance=true for empty wallets. With sortBy=balance|converted_balance and originType omitted, the backend ranks across all origins, so pass originType to scope the list. For asset asks: search with q, then pass walletIds to list_transactions / get_transaction_count.',
     path: '/wallet/list-light',
     inputSchema: {
       type: 'object',
       properties: {
         limit: { type: 'integer' },
         offset: { type: 'integer' },
-        originType: { type: 'string' },
+        originType: ORIGIN_TYPE_SCHEMA,
         q: {
           type: 'string',
           description: 'Search wallet name or address (e.g. USDT, Hot Wallet)',
@@ -152,9 +159,14 @@ const READ_TOOLS: ReadToolConfig[] = [
   },
   {
     name: 'get_wallet_count',
-    description: 'Total wallet count for the active scope.',
+    description:
+      'Total wallet count for the active scope and one origin (originType; default BLOCKCHAIN when omitted). ALL is not supported; call once per origin.',
     path: '/wallet/count',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    inputSchema: {
+      type: 'object',
+      properties: { originType: ORIGIN_TYPE_SCHEMA },
+      additionalProperties: false,
+    },
   },
   {
     name: 'get_wallet',
@@ -195,7 +207,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'list_transactions',
     description:
-      'Paginated transactions with date, wallet, label, type, allocate, origin, and sort filters. ruleLabelId=0 means unlabeled. type=buy|sell|internal. allocateType=allocated|not_allocated. originType=ALL|ON_CHAIN|MANUAL|IMPORTED|BINANCE|COINBASE|XERO|QUICKBOOKS filters by wallet origin (omit = on-chain only; use ALL for every origin; MANUAL/IMPORTED/exchange for non-chain). search matches hash/from/to/memo/amount. For biggest txs MUST use sortBy=converted_amount and order=desc with from+to (or walletIds) and limit — do not use overview/KB alone.',
+      'Paginated transactions with date, wallet, label, type, allocate, origin, and sort filters. ruleLabelId=0 means unlabeled. type=buy|sell|internal. allocateType=allocated|not_allocated. originType filters to one wallet origin scope (default BLOCKCHAIN when omitted = on-chain only; MANUAL, IMPORTED = all non-blockchain origins, or one exchange/accounting origin; ALL is not supported, call once per origin). search matches hash/from/to/memo/amount. For biggest txs MUST use sortBy=converted_amount and order=desc with from+to (or walletIds) and limit — do not use overview/KB alone.',
     path: '/transaction/entity',
     inputSchema: {
       type: 'object',
@@ -205,11 +217,7 @@ const READ_TOOLS: ReadToolConfig[] = [
         to: { type: 'string' },
         limit: { type: 'integer' },
         offset: { type: 'integer' },
-        originType: {
-          type: 'string',
-          description:
-            'Wallet origin filter. Omit for on-chain only. Use ALL for every origin; ON_CHAIN for on-chain explicitly; MANUAL/IMPORTED (every non-blockchain origin) or an exchange origin (BINANCE, COINBASE, XERO, QUICKBOOKS) for non-chain. Use MANUAL or IMPORTED to include CSV-imported transactions.',
-        },
+        originType: ORIGIN_TYPE_SCHEMA,
         search: {
           type: 'string',
           description: 'Matches hash, from/to address, memo, or amount',
@@ -266,7 +274,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'get_transaction_count',
     description:
-      'Transaction count for filters without loading full rows. Supports ruleLabelId (0=unlabeled), type (buy|sell|internal), allocateType, originType (ALL|ON_CHAIN|MANUAL|IMPORTED|BINANCE|COINBASE|XERO|QUICKBOOKS; omit = on-chain only, use ALL for every origin, MANUAL/IMPORTED/exchange for non-chain). For unlabeled counts always pass ruleLabelId=0 with from+to (or walletIds) — do not omit date/wallet scope.',
+      'Transaction count for filters without loading full rows. Supports ruleLabelId (0=unlabeled), type (buy|sell|internal), allocateType, and originType (one wallet origin scope; default BLOCKCHAIN when omitted = on-chain only; MANUAL, IMPORTED = all non-blockchain origins, or one exchange/accounting origin; ALL is not supported, call once per origin). For unlabeled counts always pass ruleLabelId=0 with from+to (or walletIds) — do not omit date/wallet scope.',
     path: '/transaction/entity/count',
     inputSchema: {
       type: 'object',
@@ -274,11 +282,7 @@ const READ_TOOLS: ReadToolConfig[] = [
         walletIds: { type: 'string' },
         from: { type: 'string' },
         to: { type: 'string' },
-        originType: {
-          type: 'string',
-          description:
-            'Wallet origin filter. Omit for on-chain only. Use ALL for every origin; ON_CHAIN for on-chain explicitly; MANUAL/IMPORTED (every non-blockchain origin) or an exchange origin (BINANCE, COINBASE, XERO, QUICKBOOKS) for non-chain. Use MANUAL or IMPORTED to count CSV-imported transactions.',
-        },
+        originType: ORIGIN_TYPE_SCHEMA,
         ruleLabelId: {
           type: 'integer',
           description: 'Label id filter; use 0 for unlabeled transactions',
