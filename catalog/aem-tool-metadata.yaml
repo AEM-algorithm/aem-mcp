@@ -55,7 +55,7 @@ tools:
     phase: 0
     kind: read
     domain: wallet
-    description: Total wallet count for the active scope. originType: omitted = ALL (every origin in scope), or one origin per call
+    description: "Total wallet count for the active scope. originType: omitted = ALL (every origin in scope), or one origin per call"
     backend:
       method: GET
       path: /wallet/count
