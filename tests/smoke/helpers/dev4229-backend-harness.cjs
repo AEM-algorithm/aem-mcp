@@ -70,7 +70,11 @@ backendRequire('dotenv').config({ path: path.join(AEM_BACKEND, '.env') });
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_ONLY = 'true';
 process.env.DB_DIALECT = 'postgres';
-process.env.TEST_DB_NAME = process.env.TEST_DB_NAME || 'journaler_test';
+if (!/^mcp_dev4229_[a-zA-Z0-9_]+$/.test(process.env.TEST_DB_NAME || '')) {
+  throw new Error(
+    'Set TEST_DB_NAME to a unique disposable mcp_dev4229_* database; refusing to touch a shared database.',
+  );
+}
 process.env.DB_DATABASE = process.env.TEST_DB_NAME;
 process.env.DB_NAME = process.env.TEST_DB_NAME;
 process.env.ENVIRONMENT = process.env.ENVIRONMENT || 'dev';

@@ -2,12 +2,12 @@
  * Wallet origin filter for list_wallets, get_wallet_count, list_transactions,
  * and get_transaction_count (DEV-4229).
  *
- * Contract: omitted originType means every origin the caller may see (ALL).
- * The MCP always sends the value explicitly (ALL when omitted), so the request
- * does not depend on the backend default.
+ * Contract: omitted or blank originType is normalized here to explicit ALL.
+ * The MCP always sends the value explicitly, so the request does not depend on
+ * endpoint-specific backend defaults.
  *
- * Backend dependency: aem-backend #1842 makes /wallet/list-light accept ALL and
- * defaults all four endpoints to ALL. Until it ships, list-light rejects ALL.
+ * Backend compatibility: this remains explicit even when a backend endpoint's
+ * omitted-origin default is narrower for legacy frontend compatibility.
  *
  * ON_CHAIN is not advertised; BLOCKCHAIN is the canonical name for on-chain wallets.
  * Keep in sync with catalog/aem-tool-metadata.yaml and catalog/aem-agent-system-prompt.md.
@@ -32,10 +32,8 @@ export const ORIGIN_TYPE_TOOLS = new Set<string>([
 ]);
 
 export const ORIGIN_TYPE_DESCRIPTION =
-  'Wallet origin scope for this call (one value per call). ' +
-  'omitted = ALL: every origin this caller can see. ' +
-  'ALL = same as omitted. ' +
-  'BLOCKCHAIN = on-chain wallets only. ' +
-  'MANUAL = manually added wallets. ' +
-  'IMPORTED = every non-blockchain origin combined (manual + exchange/accounting). ' +
-  'COINBASE, BINANCE, XERO, QUICKBOOKS = that single integration.';
+  'Choose one origin per call and keep it consistent across matching list/count queries. ' +
+  'For broad questions use ALL (the MCP also converts omitted or blank input to ALL). ' +
+  'BLOCKCHAIN = on-chain only; MANUAL = manually added only; ' +
+  'IMPORTED = all non-blockchain origins combined, including MANUAL; ' +
+  'COINBASE, BINANCE, XERO, QUICKBOOKS each select only that provider.';

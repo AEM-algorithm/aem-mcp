@@ -121,7 +121,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'list_wallets',
     description:
-      'Lightweight paginated wallet list. originType scopes the origin (omitted = ALL: every origin in scope). Optional filters: q (name/address search e.g. USDT), originType, chain, archived. Sort with sortBy=balance|converted_balance and order=desc for highest; zeroBalance=true for empty wallets. For asset asks: search with q, then pass walletIds to list_transactions / get_transaction_count.',
+      'Paginated list of active root wallets in the current session by default (archived=true lists archived root wallets; subwallets are not listed). This is not a total: default limit is 50 and maximum is 100, so use get_wallet_count for the unpaginated count. Choose originType consistently with related count/detail queries; broad asks use ALL, BLOCKCHAIN is on-chain, MANUAL is manual-only, IMPORTED combines every non-blockchain origin including MANUAL, and COINBASE/BINANCE/XERO/QUICKBOOKS each select only that provider. State the scope and any pagination when reporting results. Optional filters: q (name/address), chain, archived. Sort with sortBy=balance|converted_balance and order=desc for highest; zeroBalance=true for empty wallets. For asset asks: search with q, then pass matching walletIds to transaction list/count calls.',
     path: '/wallet/list-light',
     inputSchema: {
       type: 'object',
@@ -160,7 +160,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'get_wallet_count',
     description:
-      'Total wallet count for the active scope. originType: omitted = ALL (every origin in scope), or one explicit origin per call.',
+      'Unpaginated wallet count for the active personal/company session and selected origin. Counts may include archived wallets and child/subwallet rows, while list_wallets returns root rows only and defaults to active wallets with pagination. For broad questions use originType=ALL; use BLOCKCHAIN for on-chain, MANUAL for manual, IMPORTED for all non-blockchain origins including manual, or one provider value (COINBASE, BINANCE, XERO, QUICKBOOKS). Use the same origin scope as list_wallets and state the scope when reporting.',
     path: '/wallet/count',
     inputSchema: {
       type: 'object',
@@ -207,7 +207,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'list_transactions',
     description:
-      'Paginated transactions with date, wallet, label, type, allocate, origin, and sort filters. ruleLabelId=0 means unlabeled. type=buy|sell|internal. allocateType=allocated|not_allocated. originType is limited to wallets available in the active session: omitted = ALL (every authorized origin); BLOCKCHAIN = on-chain only; MANUAL = manual-wallet transactions only; IMPORTED = all non-blockchain origins combined; COINBASE, BINANCE, XERO, QUICKBOOKS = that integration only. search matches hash/from/to/memo/amount. For biggest txs MUST use sortBy=converted_amount and order=desc with from+to (or walletIds) and limit — do not use overview/KB alone.',
+      'Paginated transactions from wallets available in the active personal/company session. Choose the same originType and filters as a matching count query: broad asks use ALL; BLOCKCHAIN is on-chain; MANUAL is manual-only; IMPORTED combines all non-blockchain origins including MANUAL; COINBASE, BINANCE, XERO, QUICKBOOKS each select only that provider. State the scope and pagination; a capped page (maximum 50, default 25) does not prove there are no more matching transactions. ruleLabelId=0 means unlabeled. type=buy|sell|internal. allocateType=allocated|not_allocated. search matches hash/from/to/memo/amount. For biggest txs use sortBy=converted_amount and order=desc with from+to (or walletIds) and limit.',
     path: '/transaction/entity',
     inputSchema: {
       type: 'object',
@@ -274,7 +274,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'get_transaction_count',
     description:
-      'Transaction count for filters without loading full rows. Results are limited to wallets available in the active session. Supports ruleLabelId (0=unlabeled), type (buy|sell|internal), allocateType, and originType: omitted = ALL (every authorized origin); BLOCKCHAIN = on-chain only; MANUAL = manual-wallet transactions only; IMPORTED = all non-blockchain origins combined; COINBASE, BINANCE, XERO, QUICKBOOKS = that integration only. For unlabeled counts always pass ruleLabelId=0 with from+to (or walletIds) — do not omit date/wallet scope.',
+      'Unpaginated transaction count for wallets available in the active personal/company session. Use the same originType and filters as list_transactions when comparing rows with a count. Broad asks use ALL; BLOCKCHAIN is on-chain; MANUAL is manual-only; IMPORTED combines all non-blockchain origins including MANUAL; COINBASE, BINANCE, XERO, QUICKBOOKS each select only that provider. State the scope when reporting. Supports ruleLabelId (0=unlabeled), type (buy|sell|internal), and allocateType. For unlabeled counts pass ruleLabelId=0 with from+to (or walletIds) — do not omit date/wallet scope.',
     path: '/transaction/entity/count',
     inputSchema: {
       type: 'object',

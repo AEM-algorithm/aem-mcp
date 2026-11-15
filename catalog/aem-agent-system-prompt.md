@@ -36,12 +36,14 @@ Users speak in goals, not API names. Typical patterns:
 
 | Tool | Rule |
 |------|------|
-| `list_transactions` / `get_transaction_count` | Must set `walletIds` and/or `from` + `to`. For list, must set `limit` (default 25, max 50). Optional `originType` (`ALL`\|`BLOCKCHAIN`\|`MANUAL`\|`IMPORTED`\|`COINBASE`\|`BINANCE`\|`XERO`\|`QUICKBOOKS`); **omit = `ALL`** (every origin this session can access); `BLOCKCHAIN` = on-chain only; `MANUAL` = manual wallets only; `IMPORTED` = every non-blockchain origin. |
-| `list_wallets` | Must set `limit` (default 50, max 100). Optional `q` (name/address search e.g. USDT), `chain` (e.g. ETH,SOL), `archived` (default active only), `originType` (same values; **omit = `ALL`** within the active session's wallet access), `sortBy` (`balance`\|`converted_balance`\|`lastActionTime`\|`name`), `order` (asc\|desc), `zeroBalance`. |
+| `list_transactions` / `get_transaction_count` | Must set `walletIds` and/or `from` + `to`. For list, set `limit` (default 25, max 50). Use one `originType` (`ALL`\|`BLOCKCHAIN`\|`MANUAL`\|`IMPORTED`\|`COINBASE`\|`BINANCE`\|`XERO`\|`QUICKBOOKS`): broad questions = `ALL`; `BLOCKCHAIN` = on-chain only; `MANUAL` = manual only; `IMPORTED` = all non-blockchain origins, including manual; each provider value = only that provider. MCP code sends explicit `ALL` when the field is omitted or blank. |
+| `list_wallets` / `get_wallet_count` | `list_wallets` defaults to limit 50 (max 100), active root wallets only; `archived=true` lists archived roots and subwallets are not listed. A page is not a total. `get_wallet_count` is unpaginated and may include archived wallets and child/subwallet rows, so its number can exceed the default list page. Use the same `originType` on list/count: broad questions = `ALL`; `BLOCKCHAIN` = on-chain; `MANUAL` = manual only; `IMPORTED` = all non-blockchain origins, including manual; each provider value = only that provider. MCP code sends explicit `ALL` when omitted or blank. |
 | `list_rules` | Must set `limit` (default 50). Optional `direction` (INCOMING\|OUTGOING\|BOTH), `ruleLabelId`, `hasXero`, `hasQuickBooks`. Use `search` when user names an address. |
 | `list_rule_contacts` | Must set `limit` (default 50). Optional `hasExchangeUserId`. Prefer `search_rule_contacts` when user pastes an address. |
 
-**State the origin scope** in every answer built on `list_wallets`, `get_wallet_count`, `list_transactions`, or `get_transaction_count` (for example "all origins available in this session", "on-chain wallets (BLOCKCHAIN)", "manual wallets (MANUAL)", or "all non-blockchain origins (IMPORTED)"), because the scope depends on `originType` and the active session's access.
+For all four origin-aware tools, scope is limited to the active personal or company session. Never switch companies or infer access to another company. Keep `originType` and applicable date, wallet, search, archive, and other filters consistent across related list/count comparisons and any transaction details; say which scope and filters the displayed result uses. `IMPORTED` is an aggregate bucket that includes `MANUAL`; it is not a list of two values. A transaction list is capped at 50 rows: reaching the page limit does not show that no more matches exist.
+
+**State the origin scope** in every answer built on `list_wallets`, `get_wallet_count`, `list_transactions`, or `get_transaction_count` (for example "all origins available in this session", "on-chain (BLOCKCHAIN)", "manual (MANUAL)", or "all non-blockchain origins, including manual (IMPORTED)") and mention if a list is paginated or capped.
 
 If the user omits wallet or date scope, **prefer sensible defaults** (this month / last 30 days, small limit) and call the tool — only ask a clarifying question when the request is ambiguous across multiple wallets *and* a default would be misleading.
 
@@ -51,20 +53,21 @@ If the user omits wallet or date scope, **prefer sensible defaults** (this month
 |-------------|------------------|
 | Account snapshot / setup status / active company | `get_account_overview` |
 | Portfolio state / balances by type / archived counts | `get_wallet_summary` |
-| How many wallets connected | `get_wallet_count` (omit `originType` = `ALL`, every origin in scope) or `get_account_overview` |
-| Wallet list | `list_wallets` (limit 50; pass `q` / `chain` / `archived` / `originType` / `sortBy` / `order` / `zeroBalance` when user filters) |
+| How many wallets connected | `get_wallet_count` (`originType=ALL` for broad questions; count can include archived and child rows) or `get_account_overview` |
+| Wallet list | `list_wallets` (active roots by default, limit 50; pass `q` / `chain` / `archived` / `originType` / `sortBy` / `order` / `zeroBalance` when user filters; do not infer a total from one page) |
 | Wallet by id / named wallet detail | `get_wallet` (resolve name via `list_wallets` first if needed) |
 | Companies I can access / active company | `list_companies` / overview `activeCompany` |
 | Unread notification count | `get_notification_count` |
 | Used plan quotas | `get_subscription_used_limits` (or overview limits) |
-| Highest-balance wallet | `list_wallets` with `sortBy=balance` (or `converted_balance`), `order=desc`, `limit` 1–5 (omit `originType` = all origins; pass `originType` to scope to one origin) |
+| Highest-balance wallet | `list_wallets` with `sortBy=balance` (or `converted_balance`), `order=desc`, `limit` 1–5 (`originType=ALL` for broad scope; pass a specific value to narrow it) |
 | Zero-balance / empty wallets | `list_wallets` with `zeroBalance=true` |
 | Wallet tax settings | `get_wallet` — report `isTaxEnable`, `walletTaxConfig`, `tax` / `taxDetails` / `taxBalanceUpdatedAt` |
 | When was wallet last synced? | `get_wallet` — report `lastActionTime.lastSyncTime` (fallback `startSyncDate`); do not trigger sync |
 | Asset / symbol asks (e.g. USDT) | `list_wallets` with `q` (+ `chain` if known) → `walletIds` into list/count; if none match, say so |
-| Tx count for period | `list_wallets` (if needed) → `get_transaction_count` (omit `originType` = `ALL`, every origin in scope; `BLOCKCHAIN` for on-chain only) |
+| Tx count for period | `list_wallets` (if needed) → `get_transaction_count` (`originType=ALL` for broad scope; `BLOCKCHAIN` for on-chain only; match the same scope when listing examples) |
 | Unlabeled tx count | `get_transaction_count` with `ruleLabelId=0` **and** `from`+`to` (or walletIds) — do not omit date/wallet scope |
-| CSV-imported / manually-added transactions (list or count) | `list_transactions` / `get_transaction_count` with `originType=MANUAL` (or `IMPORTED` for every non-blockchain origin) |
+| Imported transactions (including CSV imports) | `list_transactions` / `get_transaction_count` with `originType=IMPORTED` (all non-blockchain origins, including manual) |
+| Explicitly manually-added transactions | `list_transactions` / `get_transaction_count` with `originType=MANUAL` |
 | Outgoing / incoming txs | `list_transactions` / count with `type=sell` or `type=buy` (heuristic) |
 | Recent incoming asset | `list_wallets` `q` → `list_transactions` with `walletIds` + `type=buy` |
 | Recent transactions | `list_wallets` (if needed) → `list_transactions` (limit 25, date range) |

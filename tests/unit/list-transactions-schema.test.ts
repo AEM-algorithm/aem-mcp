@@ -28,16 +28,18 @@ describe('createToolRegistry originType on transaction tools (DEV-4229)', () => 
     expect(properties).toHaveProperty('walletIds');
   });
 
-  it('describes MANUAL and IMPORTED as distinct scopes within the active session', () => {
+  it('describes broad, manual, and aggregate imported scopes within the active session', () => {
     const tools = createToolRegistry(backend);
     const transactionTools = ['list_transactions', 'get_transaction_count'].map((name) =>
       tools.find((tool) => tool.name === name)!,
     );
 
     for (const tool of transactionTools) {
-      expect(tool.description).toContain('every authorized origin');
-      expect(tool.description).toContain('MANUAL = manual-wallet transactions only');
-      expect(tool.description).toContain('IMPORTED = all non-blockchain origins combined');
+      const description = tool.description.toLowerCase();
+      expect(description).toContain('broad asks use all');
+      expect(description).toContain('manual is manual-only');
+      expect(description).toContain('imported combines all non-blockchain origins including manual');
+      expect(description).toContain('active personal/company session');
     }
   });
 

@@ -13,6 +13,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 import { createAemBackendClient } from '../../src/clients/aem-backend-client';
 import { loadEnv } from '../../src/config/env';
@@ -36,6 +37,7 @@ const HARNESS = path.join(__dirname, 'helpers', 'dev4229-backend-harness.cjs');
 const READY_FILE = path.join('/tmp', `dev4229-smoke-ready-${process.pid}.json`);
 const SMOKE_PORT = Number(process.env.DEV4229_SMOKE_PORT || 3099);
 const HARNESS_TIMEOUT_MS = 120_000;
+const TEST_DB_NAME = `mcp_dev4229_${process.pid}_${randomUUID().replace(/-/g, '').slice(0, 8)}`;
 
 function logEvidence(label: string, input: Record<string, unknown>, output: unknown): void {
   // eslint-disable-next-line no-console
@@ -165,6 +167,7 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
         ...process.env,
         DEV4229_READY_FILE: READY_FILE,
         DEV4229_SMOKE_PORT: String(SMOKE_PORT),
+        TEST_DB_NAME,
         AEM_BACKEND_ROOT:
           process.env.AEM_BACKEND_ROOT ||
           path.resolve(__dirname, '../../../aem-backend'),
@@ -173,6 +176,7 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
     });
 
     fixture = await waitForHarness(child);
+    expect(fixture.database).toBe(TEST_DB_NAME);
 
     // eslint-disable-next-line no-console
     console.log('\n--- DEV-4229 MCP smoke fixtures ---', {

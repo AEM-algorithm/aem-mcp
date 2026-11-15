@@ -3,7 +3,7 @@ import type { AemBackendClient } from '../../src/clients/aem-backend-client';
 import { ToolPolicyError } from '../../src/errors/tool-policy-error';
 import { ORIGIN_TYPE_ALL, ORIGIN_TYPE_TOOLS, ORIGIN_TYPE_VALUES } from '../../src/guardrails/origin-type';
 
-// Backend dependency: aem-backend #1842 (list-light accepts ALL; omitted = ALL on all four endpoints).
+// MCP explicitly sends ALL for compatibility with each endpoint's legacy omitted-origin default.
 const REQUIRED_ARGS: Record<string, Record<string, unknown>> = {
   list_wallets: { limit: 10 },
   get_wallet_count: {},
@@ -48,7 +48,8 @@ describe.each([...ORIGIN_TYPE_TOOLS])('%s originType request mapping (DEV-4229)'
 
     expect(originType.type).toBe('string');
     expect(originType.enum).toEqual([ORIGIN_TYPE_ALL, ...ORIGIN_TYPE_VALUES]);
-    expect(String(originType.description)).toContain('omitted = ALL');
+    expect(String(originType.description)).toContain('broad questions use ALL');
+    expect(String(originType.description)).toContain('omitted or blank input to ALL');
   });
 
   it('sends explicit ALL when originType is omitted', async () => {
@@ -61,6 +62,12 @@ describe.each([...ORIGIN_TYPE_TOOLS])('%s originType request mapping (DEV-4229)'
 
   it('treats a blank originType as omitted (ALL)', async () => {
     const { request, handler } = callTool(name, { originType: '   ' });
+    await handler;
+    expect(requestCall(request).params).toHaveProperty('originType', 'ALL');
+  });
+
+  it('treats a null originType as omitted (ALL)', async () => {
+    const { request, handler } = callTool(name, { originType: null });
     await handler;
     expect(requestCall(request).params).toHaveProperty('originType', 'ALL');
   });
@@ -81,6 +88,30 @@ describe.each([...ORIGIN_TYPE_TOOLS])('%s originType request mapping (DEV-4229)'
     const { request, handler } = callTool(name, { originType: '  imported ' });
     await handler;
     expect(requestCall(request).params).toHaveProperty('originType', 'IMPORTED');
+  });
+
+  it('preserves the active company session and other filters while forwarding originType', async () => {
+    const request = jest.fn().mockResolvedValue({ items: [] });
+    const tool = findTool(createToolRegistry({ request }), name);
+    const session = { userId: 7, companyId: 23, companyName: 'Current Company' };
+    const filters: Record<string, unknown> =
+      name === 'list_wallets'
+        ? { q: 'USDC', archived: false, limit: 20 }
+        : name === 'get_wallet_count'
+          ? {}
+          : { walletIds: '42', from: '2026-01-01', to: '2026-01-31' };
+
+    await tool.handler({ session, token: 'test-token' } as never, {
+      ...filters,
+      originType: 'IMPORTED',
+    });
+
+    const call = request.mock.calls[0][0] as {
+      session: typeof session;
+      params: Record<string, unknown>;
+    };
+    expect(call.session).toBe(session);
+    expect(call.params).toEqual(expect.objectContaining({ ...filters, originType: 'IMPORTED' }));
   });
 
   it.each(['ON_CHAIN', 'HASHKEY', 'BLINK'])('rejects unsupported originType=%s before calling the backend', async (value) => {
