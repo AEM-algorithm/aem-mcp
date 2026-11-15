@@ -235,23 +235,34 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
     expect(count).toBe(fixture.manualTxCount);
   });
 
-  it('get_transaction_count originType=ALL returns manual + on-chain count', async () => {
+  it('get_transaction_count originType=IMPORTED returns only non-blockchain (manual) count', async () => {
     const walletIds = `${fixture.manualWalletId},${fixture.onChainWalletId}`;
     const input = {
       tool: 'get_transaction_count',
       args: {
-        originType: 'ALL',
+        originType: 'IMPORTED',
         walletIds,
         from: fixture.from,
         to: fixture.to,
       },
     };
     const result = await getTransactionCount.handler(ctx(), input.args);
-    logEvidence('MCP count originType=ALL', input, summarizeCountResult(result));
+    logEvidence('MCP count originType=IMPORTED', input, summarizeCountResult(result));
 
     const body = result as { data?: number } | number;
     const count = typeof body === 'number' ? body : body.data;
-    expect(count).toBe(fixture.manualTxCount + fixture.onChainTxCount);
+    expect(count).toBe(fixture.manualTxCount);
+  });
+
+  it('get_transaction_count rejects originType=ALL before calling the backend', async () => {
+    const input = {
+      tool: 'get_transaction_count',
+      args: { originType: 'ALL', walletIds: String(fixture.manualWalletId), from: fixture.from, to: fixture.to },
+    };
+    await expect(getTransactionCount.handler(ctx(), input.args)).rejects.toThrow(
+      /originType=ALL is not supported/,
+    );
+    logEvidence('MCP count originType=ALL rejected', input, 'ToolPolicyError');
   });
 
   it('get_transaction_count with originType omitted forwards no originType (on-chain only)', async () => {
@@ -295,12 +306,12 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
     );
   });
 
-  it('list_transactions originType=ALL returns manual + on-chain rows', async () => {
+  it('list_transactions originType=IMPORTED returns only non-blockchain (manual) rows', async () => {
     const walletIds = `${fixture.manualWalletId},${fixture.onChainWalletId}`;
     const input = {
       tool: 'list_transactions',
       args: {
-        originType: 'ALL',
+        originType: 'IMPORTED',
         walletIds,
         from: fixture.from,
         to: fixture.to,
@@ -309,11 +320,21 @@ describe('DEV-4229 Smoke — originType forwarding via real AemBackendClient', (
     };
     const result = await listTransactions.handler(ctx(), input.args);
     const summary = summarizeListResult(result);
-    logEvidence('MCP list originType=ALL', input, summary);
+    logEvidence('MCP list originType=IMPORTED', input, summary);
 
-    expect(summary.totalCount ?? summary.count).toBe(
-      fixture.manualTxCount + fixture.onChainTxCount,
+    expect(summary.totalCount ?? summary.count).toBe(fixture.manualTxCount);
+    expect(summary.walletIds).not.toContain(fixture.onChainWalletId);
+  });
+
+  it('list_transactions rejects originType=ALL before calling the backend', async () => {
+    const input = {
+      tool: 'list_transactions',
+      args: { originType: 'ALL', walletIds: String(fixture.manualWalletId), from: fixture.from, to: fixture.to },
+    };
+    await expect(listTransactions.handler(ctx(), input.args)).rejects.toThrow(
+      /originType=ALL is not supported/,
     );
+    logEvidence('MCP list originType=ALL rejected', input, 'ToolPolicyError');
   });
 
   it('list_transactions with originType omitted forwards no originType (on-chain only)', async () => {
