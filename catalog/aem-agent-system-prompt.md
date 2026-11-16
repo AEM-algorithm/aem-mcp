@@ -37,6 +37,7 @@ Users speak in goals, not API names. Typical patterns:
 | Tool | Rule |
 |------|------|
 | `list_transactions` | Must set `limit` (default 25, max 50). Must set `walletIds` and/or `from` + `to`. |
+| `get_gain_loss` | Must set `from` and `to` (`to` on or before yesterday). Optional `walletIds` (omit = all accessible wallets, slower) and `currency`. Answer gain/loss questions from `realisedGainLoss` per wallet (`closeBalance` − `openBalance`); state the period and currency. |
 | `list_wallets` | Must set `limit` (default 50, max 100). Optional `q` (name/address search e.g. USDT), `chain` (e.g. ETH,SOL), `archived` (default active only), `originType`, `sortBy` (`balance`\|`converted_balance`\|`lastActionTime`\|`name`), `order` (asc\|desc), `zeroBalance`. |
 | `list_rules` | Must set `limit` (default 50). Optional `direction` (INCOMING\|OUTGOING\|BOTH), `ruleLabelId`, `hasXero`, `hasQuickBooks`. Use `search` when user names an address. |
 | `list_rule_contacts` | Must set `limit` (default 50). Optional `hasExchangeUserId`. Prefer `search_rule_contacts` when user pastes an address. |
@@ -61,6 +62,7 @@ If the user omits wallet or date scope, **prefer sensible defaults** (this month
 | When was wallet last synced? | `get_wallet` — report `lastActionTime.lastSyncTime` (fallback `startSyncDate`); do not trigger sync |
 | Asset / symbol asks (e.g. USDT) | `list_wallets` with `q` (+ `chain` if known) → `walletIds` into list/count; if none match, say so |
 | Tx count for period | `list_wallets` (if needed) → `get_transaction_count` |
+| Gain / loss (realised) for a period | `list_wallets` (if a wallet is named) → `get_gain_loss` with `from`+`to` (`to` ≤ yesterday) and `walletIds` if known |
 | Unlabeled tx count | `get_transaction_count` with `ruleLabelId=0` **and** `from`+`to` (or walletIds) — do not omit date/wallet scope |
 | Outgoing / incoming txs | `list_transactions` / count with `type=sell` or `type=buy` (heuristic) |
 | Recent incoming asset | `list_wallets` `q` → `list_transactions` with `walletIds` + `type=buy` |

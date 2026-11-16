@@ -259,6 +259,25 @@ const READ_TOOLS: ReadToolConfig[] = [
     },
   },
   {
+    name: 'get_gain_loss',
+    description:
+      'Realised gain/loss per wallet for a period (balance journal). Returns each wallet with openBalance, closeBalance, realisedGainLoss (closeBalance - openBalance), debit, credit, isBalanced, plus journalSummary. from and to are required; to must be on or before yesterday (backend sync delay). walletIds is optional (omit = all accessible wallets, slower). currency is an optional fiat code (default: user currency).',
+    method: 'POST',
+    path: '/transaction/entity/details',
+    fixedParams: { exportType: 'JOURNAL', type: 'Balance' },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        walletIds: { type: 'string' },
+        from: { type: 'string' },
+        to: { type: 'string' },
+        currency: { type: 'string' },
+      },
+      required: ['from', 'to'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'get_transaction_count',
     description:
       'Transaction count for filters without loading full rows. Supports ruleLabelId (0=unlabeled), type (buy|sell|internal), allocateType. For unlabeled counts always pass ruleLabelId=0 with from+to (or walletIds) — do not omit date/wallet scope.',
