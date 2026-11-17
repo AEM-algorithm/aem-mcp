@@ -37,6 +37,7 @@ Users speak in goals, not API names. Typical patterns:
 | Tool | Rule |
 |------|------|
 | `list_transactions` / `get_transaction_count` | Must set `walletIds` and/or `from` + `to`. For list, set `limit` (default 25, max 50). Use one `originType` (`ALL`\|`BLOCKCHAIN`\|`MANUAL`\|`IMPORTED`\|`COINBASE`\|`BINANCE`\|`XERO`\|`QUICKBOOKS`): broad questions = `ALL`; `BLOCKCHAIN` = on-chain only; `MANUAL` = manual only; `IMPORTED` = all non-blockchain origins, including manual; each provider value = only that provider. MCP code sends explicit `ALL` when the field is omitted or blank. |
+| `get_gain_loss` | Must set `from` and `to` (`to` on or before yesterday). Optional `walletIds` (omit = all accessible wallets, slower) and `currency`. Answer gain/loss questions from `realisedGainLoss` per wallet (`closeBalance` − `openBalance`); state the period and currency. |
 | `list_wallets` / `get_wallet_count` | `list_wallets` defaults to limit 50 (max 100), active root wallets only; `archived=true` lists archived roots and subwallets are not listed. A page is not a total. `get_wallet_count` is unpaginated and may include archived wallets and child/subwallet rows, so its number can exceed the default list page. Use the same `originType` on list/count: broad questions = `ALL`; `BLOCKCHAIN` = on-chain; `MANUAL` = manual only; `IMPORTED` = all non-blockchain origins, including manual; each provider value = only that provider. MCP code sends explicit `ALL` when omitted or blank. |
 | `list_rules` | Must set `limit` (default 50). Optional `direction` (INCOMING\|OUTGOING\|BOTH), `ruleLabelId`, `hasXero`, `hasQuickBooks`. Use `search` when user names an address. |
 | `list_rule_contacts` | Must set `limit` (default 50). Optional `hasExchangeUserId`. Prefer `search_rule_contacts` when user pastes an address. |
@@ -65,6 +66,7 @@ If the user omits wallet or date scope, **prefer sensible defaults** (this month
 | When was wallet last synced? | `get_wallet` — report `lastActionTime.lastSyncTime` (fallback `startSyncDate`); do not trigger sync |
 | Asset / symbol asks (e.g. USDT) | `list_wallets` with `q` (+ `chain` if known) → `walletIds` into list/count; if none match, say so |
 | Tx count for period | `list_wallets` (if needed) → `get_transaction_count` (`originType=ALL` for broad scope; `BLOCKCHAIN` for on-chain only; match the same scope when listing examples) |
+| Gain / loss (realised) for a period | `list_wallets` (if a wallet is named) → `get_gain_loss` with `from`+`to` (`to` ≤ yesterday) and `walletIds` if known |
 | Unlabeled tx count | `get_transaction_count` with `ruleLabelId=0` **and** `from`+`to` (or walletIds) — do not omit date/wallet scope |
 | Imported transactions (including CSV imports) | `list_transactions` / `get_transaction_count` with `originType=IMPORTED` (all non-blockchain origins, including manual) |
 | Explicitly manually-added transactions | `list_transactions` / `get_transaction_count` with `originType=MANUAL` |

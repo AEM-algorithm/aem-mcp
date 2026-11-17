@@ -164,6 +164,23 @@ tools:
       from: { type: string, optional: true }
       to: { type: string, optional: true }
 
+  - name: get_gain_loss
+    phase: 1
+    kind: read
+    domain: transaction
+    description: >-
+      Realised gain/loss per wallet for a period (balance journal): openBalance, closeBalance, realisedGainLoss, debit, credit, isBalanced, journalSummary.
+      from and to are required; to must be on or before yesterday. walletIds optional (omit = all accessible wallets, slower). currency optional fiat code.
+    backend:
+      method: POST
+      path: /transaction/entity/details
+      fixed_params: { exportType: JOURNAL, type: Balance }
+    input:
+      walletIds: { type: string, optional: true }
+      from: { type: string, required: true }
+      to: { type: string, required: true }
+      currency: { type: string, optional: true }
+
   - name: get_transaction_count
     phase: 1
     kind: read

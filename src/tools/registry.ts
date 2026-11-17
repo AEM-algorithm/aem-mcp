@@ -272,6 +272,25 @@ const READ_TOOLS: ReadToolConfig[] = [
     },
   },
   {
+    name: 'get_gain_loss',
+    description:
+      'Realised gain/loss per wallet for a period (balance journal). Returns each wallet with openBalance, closeBalance, realisedGainLoss (closeBalance - openBalance), debit, credit, isBalanced, plus journalSummary. from and to are required; to must be on or before yesterday (backend sync delay). walletIds is optional (omit = all accessible wallets, slower). currency is an optional fiat code (default: user currency).',
+    method: 'POST',
+    path: '/transaction/entity/details',
+    fixedParams: { exportType: 'JOURNAL', type: 'Balance' },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        walletIds: { type: 'string' },
+        from: { type: 'string' },
+        to: { type: 'string' },
+        currency: { type: 'string' },
+      },
+      required: ['from', 'to'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'get_transaction_count',
     description:
       'Unpaginated transaction count for wallets available in the active personal/company session. Use the same originType and filters as list_transactions when comparing rows with a count. Broad asks use ALL; BLOCKCHAIN is on-chain; MANUAL is manual-only; IMPORTED combines all non-blockchain origins including MANUAL; COINBASE, BINANCE, XERO, QUICKBOOKS each select only that provider. State the scope when reporting. Supports ruleLabelId (0=unlabeled), type (buy|sell|internal), and allocateType. For unlabeled counts pass ruleLabelId=0 with from+to (or walletIds) — do not omit date/wallet scope.',
