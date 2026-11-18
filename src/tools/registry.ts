@@ -261,7 +261,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'get_gain_loss',
     description:
-      'Realised gain/loss per wallet for a period (balance journal). Returns each wallet with openBalance, closeBalance, realisedGainLoss (closeBalance - openBalance), debit, credit, isBalanced, plus journalSummary. from and to are required; to must be on or before yesterday (backend sync delay). walletIds is optional (omit = all accessible wallets, slower). currency is an optional fiat code (default: user currency).',
+      'Historical opening/closing balances and realised gain/loss per wallet for a period (balance journal). Returns each wallet with openBalance, closeBalance, realisedGainLoss (closeBalance - openBalance), debit, credit, isBalanced, plus aggregate journalSummary. Use for historical balance inquiries (e.g. monthly closing balance, calendar year end Dec 31, financial year end June 30). from and to are required; to must be on or before yesterday (backend sync delay). walletIds is optional (omit = all accessible wallets, slower). currency is an optional fiat code (default: user currency).',
     method: 'POST',
     path: '/transaction/entity/details',
     fixedParams: { exportType: 'JOURNAL', type: 'Balance' },

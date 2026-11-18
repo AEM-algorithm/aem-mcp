@@ -166,7 +166,8 @@ tools:
     kind: read
     domain: transaction
     description: >-
-      Realised gain/loss per wallet for a period (balance journal): openBalance, closeBalance, realisedGainLoss, debit, credit, isBalanced, journalSummary.
+      Historical opening/closing balances and realised gain/loss per wallet for a period (balance journal): openBalance, closeBalance, realisedGainLoss, debit, credit, isBalanced, journalSummary.
+      Use for historical balance inquiries (e.g. monthly closing balances, calendar year end Dec 31, financial year end June 30).
       from and to are required; to must be on or before yesterday. walletIds optional (omit = all accessible wallets, slower). currency optional fiat code.
     backend:
       method: POST
