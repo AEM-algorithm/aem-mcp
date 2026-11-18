@@ -16,6 +16,8 @@ describe('get_gain_loss tool', () => {
   it('is registered as a read tool on the entity details endpoint', () => {
     const tool = findTool();
     expect(tool.description).toContain('realisedGainLoss');
+    expect(tool.description).toContain('Historical opening/closing balances');
+    expect(tool.description).toContain('historical balance inquiries');
     expect(tool.description).toContain('to must be on or before yesterday');
   });
 
