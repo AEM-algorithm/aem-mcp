@@ -168,6 +168,7 @@ tools:
     description: >-
       Realised gain/loss per wallet for a period (balance journal): openBalance, closeBalance, realisedGainLoss, debit, credit, isBalanced, journalSummary.
       from and to are required; to must be on or before yesterday. walletIds optional (omit = all accessible wallets, slower). currency optional fiat code.
+      Show warnings and pricingIncomplete exactly as returned; do not recalculate figures. Only code MISSING_FIAT means "Pricing incomplete". Code UNCATEGORIZED_PNL is a separate notice: "You have <number> uncategorised transactions", excluded from Income/Expense P&L.
     backend:
       method: POST
       path: /transaction/entity/details

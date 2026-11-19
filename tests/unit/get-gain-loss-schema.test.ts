@@ -46,6 +46,27 @@ describe('get_gain_loss tool', () => {
     });
   });
 
+  it('passes warnings and pricingIncomplete through unchanged', async () => {
+    const backendResponse = {
+      wallets: [{ walletId: 42, realisedGainLoss: 10 }],
+      pricingIncomplete: true,
+      warnings: [
+        { code: 'MISSING_FIAT', count: 3 },
+        { code: 'UNCATEGORIZED_PNL', count: 5 },
+      ],
+    };
+    const request = jest.fn().mockResolvedValue(backendResponse);
+    const tool = createToolRegistry({ request }).find((candidate) => candidate.name === 'get_gain_loss')!;
+
+    const result = await tool.handler(
+      { session: { userId: 1 }, token: 'test-token' },
+      { from: '2026-01-01', to: '2026-01-31' },
+    );
+
+    expect(result).toEqual(backendResponse);
+    expect(result).toBe(backendResponse);
+  });
+
   it('posts to entity details with the balance journal params fixed', async () => {
     const request = jest.fn().mockResolvedValue({ wallets: [] });
     const tool = createToolRegistry({ request }).find((candidate) => candidate.name === 'get_gain_loss')!;

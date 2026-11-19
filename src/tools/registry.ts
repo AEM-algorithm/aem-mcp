@@ -261,7 +261,7 @@ const READ_TOOLS: ReadToolConfig[] = [
   {
     name: 'get_gain_loss',
     description:
-      'Realised gain/loss per wallet for a period (balance journal). Returns each wallet with openBalance, closeBalance, realisedGainLoss (closeBalance - openBalance), debit, credit, isBalanced, plus journalSummary. from and to are required; to must be on or before yesterday (backend sync delay). walletIds is optional (omit = all accessible wallets, slower). currency is an optional fiat code (default: user currency).',
+      'Realised gain/loss per wallet for a period (balance journal). Returns each wallet with openBalance, closeBalance, realisedGainLoss (closeBalance - openBalance), debit, credit, isBalanced, plus journalSummary. from and to are required; to must be on or before yesterday (backend sync delay). walletIds is optional (omit = all accessible wallets, slower). currency is an optional fiat code (default: user currency). Show warnings and pricingIncomplete exactly as returned; do not recalculate figures. Only code MISSING_FIAT means "Pricing incomplete". Code UNCATEGORIZED_PNL is a separate notice: "You have <number> uncategorised transactions", excluded from Income/Expense P&L.',
     method: 'POST',
     path: '/transaction/entity/details',
     fixedParams: { exportType: 'JOURNAL', type: 'Balance' },

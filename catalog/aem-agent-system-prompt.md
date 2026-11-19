@@ -37,7 +37,7 @@ Users speak in goals, not API names. Typical patterns:
 | Tool | Rule |
 |------|------|
 | `list_transactions` | Must set `limit` (default 25, max 50). Must set `walletIds` and/or `from` + `to`. |
-| `get_gain_loss` | Must set `from` and `to` (`to` on or before yesterday). Optional `walletIds` (omit = all accessible wallets, slower) and `currency`. Answer gain/loss questions from `realisedGainLoss` per wallet (`closeBalance` − `openBalance`); state the period and currency. |
+| `get_gain_loss` | Must set `from` and `to` (`to` on or before yesterday). Optional `walletIds` (omit = all accessible wallets, slower) and `currency`. Answer gain/loss questions from `realisedGainLoss` per wallet (`closeBalance` − `openBalance`); state the period and currency. Show `warnings` and `pricingIncomplete` exactly as returned; do not recalculate figures. Only warning code `MISSING_FIAT` (missing or zero fiat) means say "Pricing incomplete". Warning code `UNCATEGORIZED_PNL` (missing category) is a separate notice: say "You have <number> uncategorised transactions" and note these are excluded from Income/Expense P&L. |
 | `list_wallets` | Must set `limit` (default 50, max 100). Optional `q` (name/address search e.g. USDT), `chain` (e.g. ETH,SOL), `archived` (default active only), `originType`, `sortBy` (`balance`\|`converted_balance`\|`lastActionTime`\|`name`), `order` (asc\|desc), `zeroBalance`. |
 | `list_rules` | Must set `limit` (default 50). Optional `direction` (INCOMING\|OUTGOING\|BOTH), `ruleLabelId`, `hasXero`, `hasQuickBooks`. Use `search` when user names an address. |
 | `list_rule_contacts` | Must set `limit` (default 50). Optional `hasExchangeUserId`. Prefer `search_rule_contacts` when user pastes an address. |
