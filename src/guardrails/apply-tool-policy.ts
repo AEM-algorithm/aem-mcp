@@ -1,8 +1,30 @@
 import { ToolPolicyError } from '../errors/tool-policy-error';
 import { AVOID_TOOLS, PAGINATION_RULES } from './agent-defaults';
+import { ORIGIN_TYPE_ALL, ORIGIN_TYPE_TOOLS, ORIGIN_TYPE_VALUES } from './origin-type';
 
 function isNonEmptyString(value: unknown): boolean {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function applyOriginType(toolName: string, args: Record<string, unknown>): void {
+  const normalized =
+    args.originType === undefined || args.originType === null
+      ? ''
+      : String(args.originType).trim().toUpperCase();
+
+  if (normalized === '') {
+    args.originType = ORIGIN_TYPE_ALL;
+    return;
+  }
+
+  const allowed: readonly string[] = [ORIGIN_TYPE_ALL, ...ORIGIN_TYPE_VALUES];
+  if (!allowed.includes(normalized)) {
+    throw new ToolPolicyError(
+      `${toolName}: unsupported originType "${String(args.originType)}" (allowed: ${allowed.join(', ')})`,
+    );
+  }
+
+  args.originType = normalized;
 }
 
 function applyPagination(toolName: string, args: Record<string, unknown>): void {
@@ -43,6 +65,10 @@ export function applyToolPolicy(
 
   const normalized = { ...args };
   applyPagination(toolName, normalized);
+
+  if (ORIGIN_TYPE_TOOLS.has(toolName)) {
+    applyOriginType(toolName, normalized);
+  }
 
   if (toolName === 'list_transactions') {
     validateListTransactionsFilters(normalized);

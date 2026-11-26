@@ -34,15 +34,15 @@ tools:
     kind: read
     domain: wallet
     description: >-
-      Lightweight paginated wallet list (q/chain/archived filters; sortBy balance|converted_balance;
-      zeroBalance for empty wallets)
+      Paginated active root-wallet list for the active personal/company session. archived=true lists archived roots; child/subwallet rows are not listed. Default limit 50, maximum 100; a page is not a total. Use get_wallet_count for the total, which may include archived and child rows. Broad questions use originType=ALL; BLOCKCHAIN=on-chain, MANUAL=manual-only, IMPORTED=all non-blockchain origins including manual, and COINBASE/BINANCE/XERO/QUICKBOOKS each select that provider. Use the same origin and filters across list/count comparisons, and state the scope and truncation when reporting.
+      q/chain filters; sortBy balance|converted_balance; zeroBalance for empty wallets.
     backend:
       method: GET
       path: /wallet/list-light
     input:
       limit: { type: integer, optional: true }
       offset: { type: integer, optional: true }
-      originType: { type: string, optional: true }
+      originType: { type: string, optional: true, description: "One value per call. Broad questions: ALL (also the MCP default for omitted or blank); BLOCKCHAIN: on-chain; MANUAL: manual only; IMPORTED: all non-blockchain origins including manual; COINBASE, BINANCE, XERO, QUICKBOOKS: that provider only. Keep the same scope for related list/count calls." }
       q: { type: string, optional: true, description: Search wallet name or address e.g. USDT }
       chain: { type: string, optional: true, description: Comma-separated chains e.g. ETH,SOL }
       archived: { type: boolean, optional: true, description: true = archived only; false/omit = active }
@@ -54,11 +54,12 @@ tools:
     phase: 0
     kind: read
     domain: wallet
-    description: Total wallet count for the active scope
+    description: "Unpaginated wallet count for the active personal/company session and selected origin; may include archived wallets and child/subwallet rows, unlike list_wallets (active roots by default, paginated). Broad questions use ALL; BLOCKCHAIN=on-chain, MANUAL=manual-only, IMPORTED=all non-blockchain origins including manual, and each provider value selects only that provider. Match list filters and state the scope when reporting. The MCP maps omitted or blank originType to explicit ALL."
     backend:
       method: GET
       path: /wallet/count
-    input: {}
+    input:
+      originType: { type: string, optional: true, description: "One value per call. Broad questions: ALL (also the MCP default for omitted or blank); BLOCKCHAIN: on-chain; MANUAL: manual only; IMPORTED: all non-blockchain origins including manual; COINBASE, BINANCE, XERO, QUICKBOOKS: that provider only. Keep the same scope for related list/count calls." }
 
   - name: get_wallet
     phase: 1
@@ -119,7 +120,8 @@ tools:
     kind: read
     domain: transaction
     description: >-
-      Paginated transactions with date, wallet, label, type, allocate, search, and sort filters.
+      Paginated transactions with date, wallet, label, type, allocate, origin, search, and sort filters.
+      Results are limited to wallets available in the active personal/company session. Broad questions use originType=ALL; BLOCKCHAIN=on-chain, MANUAL=manual-only, IMPORTED=all non-blockchain origins including manual, and COINBASE/BINANCE/XERO/QUICKBOOKS each select only that provider. Use the same origin and filters as a matching count query and state the scope. Default limit 25, maximum 50; a capped page does not prove there are no more matches.
       For biggest txs: sortBy=converted_amount order=desc with from+to (or walletIds) and limit.
     backend:
       method: GET
@@ -130,6 +132,7 @@ tools:
       to: { type: string, optional: true, description: ISO date end }
       limit: { type: integer, optional: true }
       offset: { type: integer, optional: true }
+      originType: { type: string, optional: true, description: "One value per call. Broad questions: ALL (also the MCP default for omitted or blank); BLOCKCHAIN: on-chain; MANUAL: manual only; IMPORTED: all non-blockchain origins including manual; COINBASE, BINANCE, XERO, QUICKBOOKS: that provider only. Keep the same scope for related list/count calls." }
       search: { type: string, optional: true, description: Matches hash, from/to, memo, or amount }
       ruleLabelId: { type: integer, optional: true, description: Label id; 0 = unlabeled }
       type: { type: string, optional: true, description: buy | sell | internal }
@@ -166,7 +169,8 @@ tools:
     kind: read
     domain: transaction
     description: >-
-      Realised gain/loss per wallet for a period (balance journal): openBalance, closeBalance, realisedGainLoss, debit, credit, isBalanced, journalSummary.
+      Historical opening/closing balances and realised gain/loss per wallet for a period (balance journal): openBalance, closeBalance, realisedGainLoss, debit, credit, isBalanced, journalSummary.
+      Use for historical balance inquiries (e.g. monthly closing balances, calendar year end Dec 31, financial year end June 30).
       from and to are required; to must be on or before yesterday. walletIds optional (omit = all accessible wallets, slower). currency optional fiat code.
     backend:
       method: POST
@@ -182,7 +186,8 @@ tools:
     phase: 1
     kind: read
     domain: transaction
-    description: Transaction count for filters without loading full rows
+    description: >-
+      Unpaginated transaction count for wallets available in the active personal/company session. Match originType and other filters when comparing with list_transactions, then state the scope. Broad questions use ALL; BLOCKCHAIN=on-chain, MANUAL=manual-only, IMPORTED=all non-blockchain origins including manual, and COINBASE/BINANCE/XERO/QUICKBOOKS each select only that provider. The MCP maps omitted or blank originType to explicit ALL.
     backend:
       method: GET
       path: /transaction/entity/count
@@ -190,6 +195,7 @@ tools:
       walletIds: { type: string, optional: true }
       from: { type: string, optional: true }
       to: { type: string, optional: true }
+      originType: { type: string, optional: true, description: "One value per call. Broad questions: ALL (also the MCP default for omitted or blank); BLOCKCHAIN: on-chain; MANUAL: manual only; IMPORTED: all non-blockchain origins including manual; COINBASE, BINANCE, XERO, QUICKBOOKS: that provider only. Keep the same scope for related list/count calls." }
       ruleLabelId: { type: integer, optional: true, description: Label id; 0 = unlabeled }
       type: { type: string, optional: true, description: buy | sell | internal }
       allocateType: { type: string, optional: true, description: allocated | not_allocated }

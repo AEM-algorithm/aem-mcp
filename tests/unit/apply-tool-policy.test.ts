@@ -16,6 +16,11 @@ describe('applyToolPolicy', () => {
     expect(result.limit).toBe(100);
   });
 
+  it('defaults and caps list_transactions pagination', () => {
+    expect(applyToolPolicy('list_transactions', { walletIds: '1' }).limit).toBe(25);
+    expect(applyToolPolicy('list_transactions', { walletIds: '1', limit: 500 }).limit).toBe(50);
+  });
+
   it('requires walletIds or date range for list_transactions', () => {
     expect(() => applyToolPolicy('list_transactions', {})).toThrow(ToolPolicyError);
   });
